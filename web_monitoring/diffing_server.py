@@ -1,3 +1,4 @@
+import asyncio
 import codecs
 import concurrent.futures
 from docopt import docopt
@@ -8,7 +9,6 @@ import os
 import re
 import cchardet
 import sentry_sdk
-import tornado.gen
 import tornado.httpclient
 import tornado.ioloop
 import tornado.web
@@ -139,8 +139,7 @@ class DiffHandler(BaseHandler):
         etag = f'W/"{web_monitoring.utils.hash_content(validation_bytes)}"'
         return etag
 
-    @tornado.gen.coroutine
-    def get(self, differ):
+    async def get(self, differ):
 
         # Skip a whole bunch of work if possible.
         self.set_etag_header()
@@ -175,23 +174,23 @@ class DiffHandler(BaseHandler):
             return
 
         # TODO: Add caching of fetched URIs.
-        content = yield [self.fetch_diffable_content(url,
-                                                     query_params.pop(f'{param}_hash', None),
-                                                     query_params)
-                         for param, url in urls.items()]
+        requests = [self.fetch_diffable_content(url,
+                                                query_params.pop(f'{param}_hash', None),
+                                                query_params)
+                    for param, url in urls.items()]
+        content = await asyncio.gather(*requests)
         if not all(content):
             return
 
         # Pass the bytes and any remaining args to the diffing function.
-        res = yield self.diff(func, content[0], content[1], query_params)
+        res = await self.diff(func, content[0], content[1], query_params)
         res['version'] = web_monitoring.__version__
         # Echo the client's request unless the differ func has specified
         # somethine else.
         res.setdefault('type', differ)
         self.write(res)
 
-    @tornado.gen.coroutine
-    def fetch_diffable_content(self, url, expected_hash, query_params):
+    async def fetch_diffable_content(self, url, expected_hash, query_params):
         """
         Fetch and validate a content to diff from a given URL.
         """
@@ -203,7 +202,7 @@ class DiffHandler(BaseHandler):
                 self.send_error(
                     403, reason=('Local files cannot be used in '
                                  'production environment.'))
-                raise tornado.gen.Return(None)
+                return None
             # FIXME: set content-type based on file extension.
             headers = {'Content-Type': 'application/html; charset=UTF-8'}
             with open(url[7:], 'rb') as f:
@@ -224,7 +223,7 @@ class DiffHandler(BaseHandler):
                         headers[header_key] = header_value
 
             try:
-                response = yield client.fetch(url, headers=headers,
+                response = await client.fetch(url, headers=headers,
                                               validate_cert=VALIDATE_TARGET_CERTIFICATES)
             except ValueError as error:
                 self.send_error(400, reason=str(error))
@@ -252,19 +251,19 @@ class DiffHandler(BaseHandler):
                                 reason=(f'Fetched content at "{url}" does not '
                                         f'match hash "{expected_hash}".'))
 
-        raise tornado.gen.Return(response)
+        return response
 
-    @tornado.gen.coroutine
-    def diff(self, func, a, b, params, tries=2):
+    async def diff(self, func, a, b, params, tries=2):
         """
         Actually do a diff between two pieces of content, optionally retrying
         if the process pool that executes the diff breaks.
         """
         executor = self.get_diff_executor()
+        loop = asyncio.get_running_loop()
         for attempt in range(tries):
             try:
-                result = yield executor.submit(caller, func, a, b, **params)
-                raise tornado.gen.Return(result)
+                return await loop.run_in_executor(
+                    executor, functools.partial(caller, func, a, b, **params))
             except concurrent.futures.process.BrokenProcessPool:
                 executor = self.get_diff_executor(reset=True)
 
@@ -445,8 +444,7 @@ def caller(func, a, b, **query_params):
 
 class IndexHandler(BaseHandler):
 
-    @tornado.gen.coroutine
-    def get(self):
+    async def get(self):
         # TODO Show swagger API or Markdown instead.
         info = {'diff_types': list(DIFF_ROUTES),
                 'version': web_monitoring.__version__}
@@ -455,8 +453,7 @@ class IndexHandler(BaseHandler):
 
 class HealthCheckHandler(BaseHandler):
 
-    @tornado.gen.coroutine
-    def get(self):
+    async def get(self):
         # TODO Include more information about health here.
         # The 200 repsonse code with an empty object is just a liveness check.
         self.write({})
