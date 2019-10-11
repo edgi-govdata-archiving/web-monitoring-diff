@@ -1,8 +1,9 @@
-[![Code of Conduct](https://img.shields.io/badge/%E2%9D%A4-code%20of%20conduct-blue.svg?style=flat)](https://github.com/edgi-govdata-archiving/overview/blob/master/CONDUCT.md)
+[![Code of Conduct](https://img.shields.io/badge/%E2%9D%A4-code%20of%20conduct-blue.svg?style=flat)](https://github.com/edgi-govdata-archiving/overview/blob/master/CONDUCT.md) &nbsp;[![Project Status Board](https://img.shields.io/badge/✔-Project%20Status%20Board-green.svg?style=flat)](https://github.com/orgs/edgi-govdata-archiving/projects/4)
 
 # web-monitoring-processing
 
 A component of the EDGI [Web Monitoring Project](https://github.com/edgi-govdata-archiving/web-monitoring).
+
 
 ## Overview of this component's tasks
 
@@ -16,6 +17,7 @@ This component is intended to hold various backend tools serving different tasks
 3. Query web-monitoring-db for new Changes, analyze them in an automated
    pipeline to assign priority and/or filter out uninteresting ones, and submit
    this information back to web-monitoring-db.
+
 
 ## Development status
 
@@ -31,6 +33,7 @@ Working and Under Active Development:
 
 Legacy projects that may be revisited:
 * [Example HTML](https://github.com/edgi-govdata-archiving/web-monitoring-processing/tree/master/archives) providing useful test cases.
+
 
 ## Installation Instructions
 
@@ -83,6 +86,7 @@ Legacy projects that may be revisited:
 
    Any additional arguments are passed through to `py.test`.
 
+
 ## Docker
 
 The Dockerfile runs ``wm-diffing-server`` on port 80 in the container. To build
@@ -95,9 +99,20 @@ docker run -p 4000:80 processing
 
 Point your browser or ``curl`` at ``http://localhost:4000``.
 
+
+## Releases
+
+New releases of the diffing server are published automatically as Docker images by CircleCI when someone pushes to the `release` branch. They are availble at https://hub.docker.com/r/envirodgi/ui. See [web-monitoring-ops](https://github.com/edgi-govdata-archiving/web-monitoring-ops) for how we deploy releases to actual web servers. We do not yet publish releases of the library-style tools in this repo (e.g. `db.py`, `internetarchive.py`).
+
+Images are tagged with the SHA-1 of the git commit they were built from. For example, the image `envirodgi/processing:446ae83e121ec8c2207b2bca563364cafbdf8ce0` was built from [commit `446ae83e121ec8c2207b2bca563364cafbdf8ce0`](https://github.com/edgi-govdata-archiving/web-monitoring-processing/commit/446ae83e121ec8c2207b2bca563364cafbdf8ce0) in web-monitoring-processing.
+
+We usually create *merge commits* on the `release` branch that note the PRs included in the release or any other relevant notes (e.g. [`Release #302 and #313.`](https://github.com/edgi-govdata-archiving/web-monitoring-processing/commit/446ae83e121ec8c2207b2bca563364cafbdf8ce0)).
+
+
 ## Code of Conduct
 
 This repository falls under EDGI's [Code of Conduct](https://github.com/edgi-govdata-archiving/overview/blob/master/CONDUCT.md).
+
 
 ## Contributors
 
