@@ -308,19 +308,21 @@ class DiffHandler(BaseHandler):
         # Pass non-raised (i.e. we manually called `send_error()`), non-user
         # errors to Sentry.io.
         if actual_error is None and response['code'] >= 500:
-            # TODO: this breadcrumb should happen at the start of the request
-            # handler, but we need to test and make sure crumbs are properly
-            # attached to *this* HTTP request and don't bleed over to others,
-            # since Sentry's special support for Tornado has been dropped.
-            headers = dict(self.request.headers)
-            if 'Authorization' in headers:
-                headers['Authorization'] = '[removed]'
-            sentry_sdk.add_breadcrumb(category='request', data={
-                'url': self.request.full_url(),
-                'method': self.request.method,
-                'headers': headers,
-            })
-            sentry_sdk.capture_message(f'{self._reason} (status: {response["code"]})')
+            with sentry_sdk.push_scope():
+                # TODO: this breadcrumb should happen at the start of the
+                # request handler, but we need to test and make sure crumbs are
+                # properly attached to *this* HTTP request and don't bleed over
+                # to others, since Sentry's special support for Tornado has
+                # been dropped.
+                headers = dict(self.request.headers)
+                if 'Authorization' in headers:
+                    headers['Authorization'] = '[removed]'
+                sentry_sdk.add_breadcrumb(category='request', data={
+                    'url': self.request.full_url(),
+                    'method': self.request.method,
+                    'headers': headers,
+                })
+                sentry_sdk.capture_message(f'{self._reason} (status: {response["code"]})')
 
         # Fill in full info if configured to do so
         if self.settings.get('serve_traceback') and 'exc_info' in kwargs:
