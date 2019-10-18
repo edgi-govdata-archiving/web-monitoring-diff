@@ -300,7 +300,7 @@ class DiffingServerExceptionHandlingTest(DiffingServerTestCase):
                               'a_hash=f3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855&'
                               f'b=file://{fixture_path("empty.txt")}&'
                               'b_hash=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855')
-        assert response.code == 500
+        assert response.code == 502
         assert 'hash' in json.loads(response.body)['error']
 
 

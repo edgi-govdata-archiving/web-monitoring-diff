@@ -241,15 +241,24 @@ class DiffHandler(BaseHandler):
                     response = error.response
                 else:
                     self.send_error(502,
-                                    reason=f'Received a {error.response.code} status while fetching "{url}": {error}')
+                                    reason=f'Received a {error.response.code} '
+                                           f'status while fetching "{url}": '
+                                           f'{error}',
+                                    extra={'type': 'UPSTREAM_ERROR',
+                                           'url': url,
+                                           'upstream_code': error.response.code})
 
         if response and expected_hash:
             actual_hash = hashlib.sha256(response.body).hexdigest()
             if actual_hash != expected_hash:
                 response = None
-                self.send_error(500,
+                self.send_error(502,
                                 reason=(f'Fetched content at "{url}" does not '
-                                        f'match hash "{expected_hash}".'))
+                                        f'match hash "{expected_hash}".'),
+                                extra={'type': 'HASH_MISMATCH',
+                                       'url': url,
+                                       'expected_hash': expected_hash,
+                                       'actual_hash': actual_hash})
 
         return response
 
@@ -285,6 +294,9 @@ class DiffHandler(BaseHandler):
 
     def write_error(self, status_code, **kwargs):
         response = {'code': status_code, 'error': self._reason}
+        if 'extra' in kwargs:
+            for key, value in kwargs['extra'].items():
+                response[key] = value
 
         # Handle errors that are allowed to be public
         # TODO: this error filtering should probably be in `send_error()`
