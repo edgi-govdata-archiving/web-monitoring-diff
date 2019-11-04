@@ -39,11 +39,11 @@ and results between them.
 
 from collections import defaultdict
 from datetime import datetime, timedelta
+import dateutil.parser
 from docopt import docopt
 import json
 import logging
 from os.path import splitext
-import pandas
 from pathlib import Path
 import re
 import requests
@@ -564,7 +564,7 @@ def save_unplaybackable_mementos(path, mementos, expiration=7 * 24 * 60 * 60):
         date = mementos[url]
         needs_format = False
         if isinstance(date, str):
-            date = datetime.strptime(date, '%Y-%m-%dT%H:%M:%SZ')
+            date = dateutil.parser.parse(date, ignoretz=True)
         else:
             needs_format = True
 
@@ -680,9 +680,7 @@ def _parse_date_argument(date_string):
         pass
 
     try:
-        parsed = pandas.to_datetime(date_string)
-        if not pandas.isnull(parsed):
-            return parsed
+        return dateutil.parser.parse(date_string)
     except ValueError:
         pass
 
