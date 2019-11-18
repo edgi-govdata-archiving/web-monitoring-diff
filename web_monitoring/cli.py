@@ -275,6 +275,10 @@ class WaybackRecordsWorker(threading.Thread):
         """
         Format a Wayback Memento response as a dict with import-ready info.
         """
+        iso_date = cdx_record.date.isoformat()
+        if cdx_record.date.tzinfo is None:
+            iso_date += 'Z'
+
         # Get all headers from the original response.
         prefix = 'X-Archive-Orig-'
         original_headers = {
@@ -283,7 +287,7 @@ class WaybackRecordsWorker(threading.Thread):
         }
 
         metadata = {
-            'mime_type': memento.headers.get('content-type', '').split(';', 1),
+            'mime_type': memento.headers.get('content-type', '').split(';', 1)[0],
             'encoding': memento.encoding,
             'headers': original_headers,
             'view_url': cdx_record.view_url
@@ -310,7 +314,7 @@ class WaybackRecordsWorker(threading.Thread):
             title=utils.extract_title(memento.content),
 
             # Version/memento-level info
-            capture_time=cdx_record.date.isoformat(),
+            capture_time=iso_date,
             uri=cdx_record.raw_url,
             version_hash=utils.hash_content(memento.content),
             source_type='internet_archive',
