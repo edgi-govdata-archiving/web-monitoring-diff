@@ -54,8 +54,6 @@ from tqdm import tqdm
 from urllib.parse import urlparse
 from web_monitoring import db
 import wayback
-# FIXME: importing a private API like this is not great :(
-from wayback._client import original_url_for_memento
 from web_monitoring import utils
 
 
@@ -275,8 +273,8 @@ class WaybackRecordsWorker(threading.Thread):
         """
         Format a Wayback Memento response as a dict with import-ready info.
         """
-        iso_date = cdx_record.date.isoformat()
-        if cdx_record.date.tzinfo is None:
+        iso_date = cdx_record.timestamp.isoformat()
+        if cdx_record.timestamp.tzinfo is None:
             iso_date += 'Z'
 
         # Get all headers from the original response.
@@ -299,9 +297,9 @@ class WaybackRecordsWorker(threading.Thread):
         # If there were redirects, list every URL in the chain of requests.
         if memento.url != cdx_record.raw_url:
             redirects = list(map(
-                lambda response: original_url_for_memento(response.url),
+                lambda response: wayback.memento_url_data(response.url)[0],
                 memento.history))
-            redirected_url = original_url_for_memento(memento.url)
+            redirected_url = wayback.memento_url_data(memento.url)[0]
             redirects.append(redirected_url)
             metadata['redirected_url'] = redirected_url
             metadata['redirects'] = redirects
