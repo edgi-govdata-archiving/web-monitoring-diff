@@ -23,8 +23,6 @@ This component is intended to hold various backend tools serving different tasks
 
 Working and Under Active Development:
 
-* A Python API to the Internet Archive Wayback Machine's archived webpage
-  snapshots in ``web_monitoring.internetarchive``
 * A Python API to the web-monitoring-db Rails app in ``web_monitoring.db``
 * Python functions and a command-line tool for importing snapshots from the
   Internet Archive into web-monitoring-db.
@@ -102,7 +100,7 @@ Point your browser or ``curl`` at ``http://localhost:4000``.
 
 ## Releases
 
-New releases of the diffing server are published automatically as Docker images by CircleCI when someone pushes to the `release` branch. They are availble at https://hub.docker.com/r/envirodgi/ui. See [web-monitoring-ops](https://github.com/edgi-govdata-archiving/web-monitoring-ops) for how we deploy releases to actual web servers. We do not yet publish releases of the library-style tools in this repo (e.g. `db.py`, `internetarchive.py`).
+New releases of the diffing server are published automatically as Docker images by CircleCI when someone pushes to the `release` branch. They are availble at https://hub.docker.com/r/envirodgi/ui. See [web-monitoring-ops](https://github.com/edgi-govdata-archiving/web-monitoring-ops) for how we deploy releases to actual web servers. We do not yet publish releases of the library-style tools in this repo (e.g. `db.py`).
 
 Images are tagged with the SHA-1 of the git commit they were built from. For example, the image `envirodgi/processing:446ae83e121ec8c2207b2bca563364cafbdf8ce0` was built from [commit `446ae83e121ec8c2207b2bca563364cafbdf8ce0`](https://github.com/edgi-govdata-archiving/web-monitoring-processing/commit/446ae83e121ec8c2207b2bca563364cafbdf8ce0) in web-monitoring-processing.
 
