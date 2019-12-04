@@ -53,11 +53,16 @@ import threading
 from tqdm import tqdm
 from urllib.parse import urlparse
 from web_monitoring import db
-from web_monitoring import internetarchive as ia
-from web_monitoring import utils
+import wayback
+from wayback.exceptions import (WaybackException, WaybackRetryError,
+                                MementoPlaybackError, BlockedByRobotsError)
+from web_monitoring import utils, __version__
 
 
 logger = logging.getLogger(__name__)
+
+# User agent for requests to Wayback
+USER_AGENT = f'edgi.web_monitoring.WaybackClient/{__version__}'
 
 # Number of memento requests to make at once. Can be overridden via CLI args.
 PARALLEL_REQUESTS = 10
@@ -172,8 +177,8 @@ class WaybackRecordsWorker(threading.Thread):
         self.unplaybackable = unplaybackable
         session_options = session_options or dict(retries=3, backoff=2,
                                                   timeout=(30.5, 2))
-        session = ia.WaybackSession(**session_options)
-        self.wayback = ia.WaybackClient(session=session)
+        session = wayback.WaybackSession(user_agent=USER_AGENT, **session_options)
+        self.wayback = wayback.WaybackClient(session=session)
 
     def is_active(self):
         return not self.cancel.is_set()
@@ -209,7 +214,7 @@ class WaybackRecordsWorker(threading.Thread):
             version = self.process_record(record, retry_connection_failures=True)
             self.results_queue.put(version)
             self.summary['success'] += 1
-        except ia.MementoPlaybackError as error:
+        except MementoPlaybackError as error:
             self.summary['playback'] += 1
             if self.unplaybackable is not None:
                 self.unplaybackable[record.raw_url] = datetime.utcnow()
@@ -227,7 +232,7 @@ class WaybackRecordsWorker(threading.Thread):
                     self.failure_queue.put(record)
                 else:
                     self.summary['unknown'] += 1
-        except ia.WaybackRetryError as error:
+        except WaybackRetryError as error:
             logger.info(f'  {error}; URL: {record.raw_url}')
 
             if self.failure_queue:
@@ -252,12 +257,10 @@ class WaybackRecordsWorker(threading.Thread):
         a Web Monitoring DB import record.
         """
         try:
-            return self.wayback.timestamped_uri_to_version(record.date,
-                                                           record.raw_url,
-                                                           url=record.url,
-                                                           maintainers=self.maintainers,
-                                                           tags=self.tags,
-                                                           view_url=record.view_url)
+            memento = self.wayback.get_memento(record.raw_url,
+                                               exact_redirects=False)
+            return self.format_memento(memento, record, self.maintainers,
+                                       self.tags)
         except Exception as error:
             # On connection failures, reset the session and try again. If we
             # don't do this, the connection pool for this thread is pretty much
@@ -271,6 +274,57 @@ class WaybackRecordsWorker(threading.Thread):
 
             # Otherwise, re-raise the error.
             raise error
+
+    def format_memento(self, memento, cdx_record, maintainers, tags):
+        """
+        Format a Wayback Memento response as a dict with import-ready info.
+        """
+        iso_date = cdx_record.timestamp.isoformat()
+        if cdx_record.timestamp.tzinfo is None:
+            iso_date += 'Z'
+
+        # Get all headers from the original response.
+        prefix = 'X-Archive-Orig-'
+        original_headers = {
+            k[len(prefix):]: v for k, v in memento.headers.items()
+            if k.startswith(prefix)
+        }
+
+        metadata = {
+            'mime_type': memento.headers.get('content-type', '').split(';', 1)[0],
+            'encoding': memento.encoding,
+            'headers': original_headers,
+            'view_url': cdx_record.view_url
+        }
+
+        if memento.status_code >= 400:
+            metadata['error_code'] = memento.status_code
+
+        # If there were redirects, list every URL in the chain of requests.
+        if memento.url != cdx_record.raw_url:
+            redirects = list(map(
+                lambda response: wayback.memento_url_data(response.url)[0],
+                memento.history))
+            redirected_url = wayback.memento_url_data(memento.url)[0]
+            redirects.append(redirected_url)
+            metadata['redirected_url'] = redirected_url
+            metadata['redirects'] = redirects
+
+        return dict(
+            # Page-level info
+            page_url=cdx_record.url,
+            page_maintainers=maintainers,
+            page_tags=tags,
+            title=utils.extract_title(memento.content),
+
+            # Version/memento-level info
+            capture_time=iso_date,
+            uri=cdx_record.raw_url,
+            version_hash=utils.hash_content(memento.content),
+            source_type='internet_archive',
+            source_metadata=metadata,
+            status=memento.status_code
+        )
 
     @classmethod
     def create_summary(cls):
@@ -427,7 +481,6 @@ def import_ia_urls(urls, *, from_date=None, to_date=None,
                    version_filter=None, worker_count=0,
                    create_pages=True, unplaybackable_path=None,
                    dry_run=False):
-    skip_responses = skip_unchanged == 'response'
     worker_count = worker_count if worker_count > 0 else PARALLEL_REQUESTS
     unplaybackable = load_unplaybackable_mementos(unplaybackable_path)
 
@@ -439,10 +492,11 @@ def import_ia_urls(urls, *, from_date=None, to_date=None,
                 urls,
                 from_date,
                 to_date,
-                skip_responses,
                 version_filter,
                 # Use a custom session to make sure CDX calls are extra robust.
-                client=ia.WaybackClient(ia.WaybackSession(retries=10, backoff=4)),
+                client=wayback.WaybackClient(wayback.WaybackSession(user_agent=USER_AGENT,
+                                                                    retries=10,
+                                                                    backoff=4)),
                 stop=stop_event)))
         cdx_thread.start()
 
@@ -501,20 +555,17 @@ def _filter_unchanged_versions(versions):
 
 
 def _list_ia_versions_for_urls(url_patterns, from_date, to_date,
-                               skip_repeats=True, version_filter=None,
-                               client=None, stop=None):
+                               version_filter=None, client=None, stop=None):
     version_filter = version_filter or _is_page
     skipped = 0
 
-    with client or ia.WaybackClient() as client:
+    with client or wayback.WaybackClient(wayback.WaybackSession(user_agent=USER_AGENT)) as client:
         for url in url_patterns:
             if stop and stop.is_set():
                 break
 
-            ia_versions = client.list_versions(url,
-                                            from_date=from_date,
-                                            to_date=to_date,
-                                            skip_repeats=skip_repeats)
+            ia_versions = client.search(url, from_date=from_date,
+                                        to_date=to_date)
             try:
                 for version in ia_versions:
                     if stop and stop.is_set():
@@ -524,15 +575,9 @@ def _list_ia_versions_for_urls(url_patterns, from_date, to_date,
                     else:
                         skipped += 1
                         logger.debug('Skipping URL "%s"', version.url)
-            except ia.BlockedByRobotsError as error:
+            except BlockedByRobotsError as error:
                 logger.warn(f'CDX search error: {error!r}')
-            except ValueError as error:
-                # NOTE: this isn't really an exceptional case; list_versions()
-                # raises ValueError when Wayback has no matching records.
-                # TODO: there should probably be no exception in this case.
-                if 'does not have archived versions' not in str(error):
-                    logger.warn(repr(error))
-            except ia.WaybackException as error:
+            except WaybackException as error:
                 logger.error(f'Error getting CDX data for {url}: {error!r}')
             except Exception:
                 # Need to handle the exception here to let iteration continue
@@ -702,8 +747,7 @@ Options:
 --tag <tag>                   Tags to apply to pages. Repeat for multiple tags.
 --skip-unchanged <skip_type>  Skip consecutive captures of the same content.
                               Can be:
-                                `none` (no skipping),
-                                `response` (if the response is unchanged), or
+                                `none` (no skipping) or
                                 `resolved-response` (if the final response
                                     after redirects is unchanged)
                               [default: resolved-response]
