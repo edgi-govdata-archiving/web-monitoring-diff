@@ -495,7 +495,7 @@ def import_ia_urls(urls, *, from_date=None, to_date=None,
                 version_filter,
                 # Use a custom session to make sure CDX calls are extra robust.
                 client=wayback.WaybackClient(wayback.WaybackSession(user_agent=USER_AGENT,
-                                                                    retries=10,
+                                                                    retries=4,
                                                                     backoff=4)),
                 stop=stop_event)))
         cdx_thread.start()
@@ -561,6 +561,7 @@ def _list_ia_versions_for_urls(url_patterns, from_date, to_date,
 
     with client or wayback.WaybackClient(wayback.WaybackSession(user_agent=USER_AGENT)) as client:
         for url in url_patterns:
+            should_retry = True
             if stop and stop.is_set():
                 break
 
@@ -579,10 +580,24 @@ def _list_ia_versions_for_urls(url_patterns, from_date, to_date,
                 logger.warn(f'CDX search error: {error!r}')
             except WaybackException as error:
                 logger.error(f'Error getting CDX data for {url}: {error!r}')
-            except Exception:
-                # Need to handle the exception here to let iteration continue
-                # and allow other threads that might be running to be joined.
-                logger.exception(f'Error processing versions of {url}')
+            except Exception as error:
+                # On connection failures, reset the session and try again. If
+                # we don't do this, the connection pool for this thread is
+                # pretty much dead. It's not clear to me whether there is a
+                # problem in urllib3 or Wayback's servers that requires this.
+                # This unfortunately requires string checking because the error
+                # can get wrapped up into multiple kinds of higher-level
+                # errors :(
+                # TODO: unify this with similar code in WaybackRecordsWorker or
+                # push it down into the `wayback` package.
+                if should_retry and ('failed to establish a new connection' in str(error).lower()):
+                    client.session.reset()
+                    should_retry = False
+                else:
+                    # Need to handle the exception here to let iteration
+                    # continue and allow other threads that might be running to
+                    # be joined.
+                    logger.exception(f'Error processing versions of {url}')
 
     if skipped > 0:
         logger.info('Skipped %s URLs that did not match filters', skipped)
