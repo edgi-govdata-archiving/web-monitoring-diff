@@ -70,10 +70,47 @@ XML_PROLOG_PATTERN = re.compile(
 client = tornado.httpclient.AsyncHTTPClient()
 
 
+class PublicError(tornado.web.HTTPError):
+    """
+    Customized version of Tornado's HTTP error designed for reporting publicly
+    visible error messages. Please always raise this instead of calling
+    `send_error()` directly, since it lets you attach a user-visible
+    explanation of what went wrong.
+
+    Parameters
+    ----------
+    status_code : int, optional
+        Status code for the response. Defaults to `500`.
+    public_message : str, optional
+        Textual description of the error. This will be publicly visible in
+        production mode, unlike `log_message`.
+    log_message : str, optional
+        Error message written to logs and to error tracking service. Will be
+        included in the HTTP response only in debug mode. Same as the
+        `log_message` parameter to `tornado.web.HTTPError`, but with no
+        interpolation.
+    extra : dict, optional
+        Dict of additional keys and values to include in the error response.
+    """
+    def __init__(self, status_code=500, public_message=None, log_message=None,
+                 extra=None, **kwargs):
+        self.extra = extra or {}
+
+        if public_message is not None:
+            if 'error' not in self.extra:
+                self.extra['error'] = public_message
+
+            if log_message is None:
+                log_message = public_message
+
+        super().__init__(status_code, log_message, **kwargs)
+
+
 class MockRequest:
     "An HTTPRequest-like object for local file:/// requests."
     def __init__(self, url):
         self.url = url
+
 
 class MockResponse:
     "An HTTPResponse-like object for local file:/// requests."
@@ -83,6 +120,7 @@ class MockResponse:
         self.headers = headers
         self.error = None
 
+
 DEBUG_MODE = os.environ.get('DIFFING_SERVER_DEBUG', 'False').strip().lower() == 'true'
 
 VALIDATE_TARGET_CERTIFICATES = \
@@ -90,6 +128,7 @@ VALIDATE_TARGET_CERTIFICATES = \
 
 access_control_allow_origin_header = \
     os.environ.get('ACCESS_CONTROL_ALLOW_ORIGIN_HEADER')
+
 
 class BaseHandler(tornado.web.RequestHandler):
 
@@ -152,12 +191,10 @@ class DiffHandler(BaseHandler):
         try:
             func = self.differs[differ]
         except KeyError:
-            self.send_error(404,
-                            reason=f'Unknown diffing method: `{differ}`. '
+            raise PublicError(404, f'Unknown diffing method: `{differ}`. '
                                    f'You can get a list of '
                                    f'supported differs from '
                                    f'the `/` endpoint.')
-            return
 
         query_params = self.decode_query_params()
         # The logic here is a bit tortured in order to allow one or both URLs
@@ -166,12 +203,10 @@ class DiffHandler(BaseHandler):
         try:
             urls = {param: query_params.pop(param) for param in ('a', 'b')}
         except KeyError:
-            self.send_error(
-                400,
-                reason='Malformed request. '
-                       'You must provide a URL as the value '
-                       'for both `a` and `b` query parameters.')
-            return
+            raise PublicError(400,
+                              'Malformed request. You must provide a URL '
+                              'as the value for both `a` and `b` query '
+                              'parameters.')
 
         # TODO: Add caching of fetched URIs.
         requests = [self.fetch_diffable_content(url,
@@ -179,8 +214,6 @@ class DiffHandler(BaseHandler):
                                                 query_params)
                     for param, url in urls.items()]
         content = await asyncio.gather(*requests)
-        if not all(content):
-            return
 
         # Pass the bytes and any remaining args to the diffing function.
         res = await self.diff(func, content[0], content[1], query_params)
@@ -199,10 +232,8 @@ class DiffHandler(BaseHandler):
         # For testing convenience, support file:// URLs in development.
         if url.startswith('file://'):
             if os.environ.get('WEB_MONITORING_APP_ENV') == 'production':
-                self.send_error(
-                    403, reason=('Local files cannot be used in '
-                                 'production environment.'))
-                return None
+                raise PublicError(403, 'Local files cannot be used in '
+                                       'production environment.')
             # FIXME: set content-type based on file extension.
             headers = {'Content-Type': 'application/html; charset=UTF-8'}
             with open(url[7:], 'rb') as f:
@@ -226,11 +257,17 @@ class DiffHandler(BaseHandler):
                 response = await client.fetch(url, headers=headers,
                                               validate_cert=VALIDATE_TARGET_CERTIFICATES)
             except ValueError as error:
-                self.send_error(400, reason=str(error))
+                raise PublicError(400, str(error))
             except OSError as error:
-                self.send_error(502, reason=f'Could not fetch {url}: {error}')
+                raise PublicError(502,
+                                  f'Could not fetch "{url}": {error}',
+                                  'Could not fetch upstream content',
+                                  extra={'url': url, 'cause': str(error)})
             except tornado.simple_httpclient.HTTPTimeoutError:
-                self.send_error(504, reason=f'Timed out while fetching "{url}"')
+                raise PublicError(504,
+                                  f'Timed out while fetching "{url}"',
+                                  'Could not fetch upstream content',
+                                  extra={'url': url})
             except tornado.httpclient.HTTPError as error:
                 # If the response is actually coming from a web archive,
                 # allow error codes. The Memento-Datetime header indicates
@@ -240,25 +277,26 @@ class DiffHandler(BaseHandler):
                         error.response.headers.get('Memento-Datetime') is not None:
                     response = error.response
                 else:
-                    self.send_error(502,
-                                    reason=f'Received a {error.response.code} '
-                                           f'status while fetching "{url}": '
-                                           f'{error}',
-                                    extra={'type': 'UPSTREAM_ERROR',
-                                           'url': url,
-                                           'upstream_code': error.response.code})
+                    raise PublicError(502,
+                                      (f'Received a {error.response.code} '
+                                       f'status while fetching "{url}": '
+                                       f'{error}'),
+                                      log_message='Could not fetch upstream content',
+                                      extra={'type': 'UPSTREAM_ERROR',
+                                             'url': url,
+                                             'upstream_code': error.response.code})
 
         if response and expected_hash:
             actual_hash = hashlib.sha256(response.body).hexdigest()
             if actual_hash != expected_hash:
-                response = None
-                self.send_error(502,
-                                reason=(f'Fetched content at "{url}" does not '
-                                        f'match hash "{expected_hash}".'),
-                                extra={'type': 'HASH_MISMATCH',
-                                       'url': url,
-                                       'expected_hash': expected_hash,
-                                       'actual_hash': actual_hash})
+                raise PublicError(502,
+                                  (f'Fetched content at "{url}" does not '
+                                   f'match hash "{expected_hash}".'),
+                                  log_message='Could not fetch upstream content',
+                                  extra={'type': 'HASH_MISMATCH',
+                                         'url': url,
+                                         'expected_hash': expected_hash,
+                                         'actual_hash': actual_hash})
 
         return response
 
@@ -294,9 +332,6 @@ class DiffHandler(BaseHandler):
 
     def write_error(self, status_code, **kwargs):
         response = {'code': status_code, 'error': self._reason}
-        if 'extra' in kwargs:
-            for key, value in kwargs['extra'].items():
-                response[key] = value
 
         # Handle errors that are allowed to be public
         # TODO: this error filtering should probably be in `send_error()`
@@ -305,15 +340,23 @@ class DiffHandler(BaseHandler):
             response['code'] = 422
             response['error'] = str(actual_error)
 
-        # Pass non-raised (i.e. we manually called `send_error()`), non-user
-        # errors to Sentry.io.
-        if actual_error is None and response['code'] >= 500:
-            with sentry_sdk.push_scope():
+        if 'extra' in kwargs:
+            response.update(kwargs['extra'])
+        if isinstance(actual_error, PublicError):
+            response.update(actual_error.extra)
+
+        # Instances of PublicError and tornado.web.HTTPError won't get tracked
+        # by Sentry by default, but we do want to track unexpected, server-side
+        # issues. (Usually a non-HTTPError will have been raised in this case,
+        # but PublicError can be used for special status codes.)
+        if isinstance(actual_error, tornado.web.HTTPError) and response['code'] >= 500:
+            with sentry_sdk.push_scope() as scope:
                 # TODO: this breadcrumb should happen at the start of the
                 # request handler, but we need to test and make sure crumbs are
                 # properly attached to *this* HTTP request and don't bleed over
                 # to others, since Sentry's special support for Tornado has
                 # been dropped.
+                scope.clear_breadcrumbs()
                 headers = dict(self.request.headers)
                 if 'Authorization' in headers:
                     headers['Authorization'] = '[removed]'
@@ -322,7 +365,9 @@ class DiffHandler(BaseHandler):
                     'method': self.request.method,
                     'headers': headers,
                 })
-                sentry_sdk.capture_message(f'{self._reason} (status: {response["code"]})')
+                sentry_sdk.add_breadcrumb(category='response', data=response)
+                scope.level = 'info'
+                sentry_sdk.capture_exception(actual_error)
 
         # Fill in full info if configured to do so
         if self.settings.get('serve_traceback') and 'exc_info' in kwargs:
