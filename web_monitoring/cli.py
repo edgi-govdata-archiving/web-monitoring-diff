@@ -259,8 +259,9 @@ class WaybackRecordsWorker(threading.Thread):
         try:
             memento = self.wayback.get_memento(record.raw_url,
                                                exact_redirects=False)
-            return self.format_memento(memento, record, self.maintainers,
-                                       self.tags)
+            with memento:
+                return self.format_memento(memento, record, self.maintainers,
+                                           self.tags)
         except Exception as error:
             # On connection failures, reset the session and try again. If we
             # don't do this, the connection pool for this thread is pretty much
@@ -269,6 +270,7 @@ class WaybackRecordsWorker(threading.Thread):
             # This unfortunately requires string checking because the error can
             # get wrapped up into multiple kinds of higher-level errors :(
             if retry_connection_failures and ('failed to establish a new connection' in str(error).lower()):
+                logger.warn(f'Resetting Wayback Session for memento thread {self.name}.')
                 self.wayback.session.reset()
                 return self.process_record(record)
 
@@ -591,6 +593,7 @@ def _list_ia_versions_for_urls(url_patterns, from_date, to_date,
                 # TODO: unify this with similar code in WaybackRecordsWorker or
                 # push it down into the `wayback` package.
                 if should_retry and ('failed to establish a new connection' in str(error).lower()):
+                    logger.warn('Resetting Wayback Session for CDX search.')
                     client.session.reset()
                     should_retry = False
                 else:
