@@ -14,10 +14,8 @@ import tornado.ioloop
 import tornado.web
 import traceback
 import web_monitoring
-import web_monitoring.differs
-from web_monitoring.diff_errors import UndiffableContentError, UndecodableContentError
-import web_monitoring.html_diff_render
-import web_monitoring.links_diff
+from ..diff import differs, html_diff_render, links_diff
+from ..diff.diff_errors import UndiffableContentError, UndecodableContentError
 
 # Track errors with Sentry.io. It will automatically detect the `SENTRY_DSN`
 # environment variable. If not set, all its methods will operate conveniently
@@ -32,26 +30,26 @@ DIFFER_PARALLELISM = os.environ.get('DIFFER_PARALLELISM', 10)
 # Map tokens in the REST API to functions in modules.
 # The modules do not have to be part of the web_monitoring package.
 DIFF_ROUTES = {
-    "length": web_monitoring.differs.compare_length,
-    "identical_bytes": web_monitoring.differs.identical_bytes,
-    "side_by_side_text": web_monitoring.differs.side_by_side_text,
-    "links": web_monitoring.links_diff.links_diff_html,
-    "links_json": web_monitoring.links_diff.links_diff_json,
+    "length": differs.compare_length,
+    "identical_bytes": differs.identical_bytes,
+    "side_by_side_text": differs.side_by_side_text,
+    "links": links_diff.links_diff_html,
+    "links_json": links_diff.links_diff_json,
     # applying diff-match-patch (dmp) to strings (no tokenization)
-    "html_text_dmp": web_monitoring.differs.html_text_diff,
-    "html_source_dmp": web_monitoring.differs.html_source_diff,
+    "html_text_dmp": differs.html_text_diff,
+    "html_source_dmp": differs.html_source_diff,
     # three different approaches to the same goal:
-    "html_token": web_monitoring.html_diff_render.html_diff_render,
-    "html_tree": web_monitoring.differs.html_tree_diff,
-    "html_perma_cc": web_monitoring.differs.html_differ,
+    "html_token": html_diff_render.html_diff_render,
+    "html_tree": differs.html_tree_diff,
+    "html_perma_cc": differs.html_differ,
 
     # deprecated synonyms
-    "links_diff": web_monitoring.links_diff.links_diff,
-    "html_text_diff": web_monitoring.differs.html_text_diff,
-    "html_source_diff": web_monitoring.differs.html_source_diff,
-    "html_visual_diff": web_monitoring.html_diff_render.html_diff_render,
-    "html_tree_diff": web_monitoring.differs.html_tree_diff,
-    "html_differ": web_monitoring.differs.html_differ,
+    "links_diff": links_diff.links_diff,
+    "html_text_diff": differs.html_text_diff,
+    "html_source_diff": differs.html_source_diff,
+    "html_visual_diff": html_diff_render.html_diff_render,
+    "html_tree_diff": differs.html_tree_diff,
+    "html_differ": differs.html_differ,
 }
 
 # Matches a <meta> tag in HTML used to specify the character encoding:

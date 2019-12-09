@@ -11,8 +11,8 @@ from pkg_resources import resource_filename
 import html5_parser
 import pytest
 import re
-from web_monitoring.diff_errors import UndiffableContentError
-from web_monitoring.html_diff_render import html_diff_render
+from web_monitoring.diff.diff_errors import UndiffableContentError
+from web_monitoring.diff.html_diff_render import html_diff_render
 
 
 # TODO: extend these to other html differs via parameterization, a la

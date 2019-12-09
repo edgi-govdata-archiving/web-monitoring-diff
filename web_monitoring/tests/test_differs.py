@@ -1,4 +1,4 @@
-import web_monitoring.differs as wd
+import web_monitoring.diff.differs as wd
 
 
 def test_side_by_side_text():

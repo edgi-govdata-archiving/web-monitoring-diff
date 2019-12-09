@@ -6,8 +6,8 @@ import re
 import tempfile
 from tornado.testing import AsyncHTTPTestCase
 from unittest.mock import patch
-import web_monitoring.diffing_server as df
-from web_monitoring.diff_errors import UndecodableContentError
+import web_monitoring.diff_server.server as df
+from web_monitoring.diff.diff_errors import UndecodableContentError
 import web_monitoring
 from tornado.escape import utf8
 from tornado.httpclient import HTTPResponse, AsyncHTTPClient
@@ -205,7 +205,7 @@ class DiffingServerExceptionHandlingTest(DiffingServerTestCase):
             self.assertEqual(response.code, 200)
             assert 'change_count' in json.loads(response.body)
 
-    @patch('web_monitoring.diffing_server.access_control_allow_origin_header', '*')
+    @patch('web_monitoring.diff_server.server.access_control_allow_origin_header', '*')
     def test_check_cors_headers(self):
         """
         Since we have set Access-Control-Allow-Origin: * on app init,
@@ -222,7 +222,7 @@ class DiffingServerExceptionHandlingTest(DiffingServerTestCase):
         assert response.headers.get('Access-Control-Allow-Headers') == 'x-requested-with'
         assert response.headers.get('Access-Control-Allow-Methods') == 'GET, OPTIONS'
 
-    @patch('web_monitoring.diffing_server.access_control_allow_origin_header',
+    @patch('web_monitoring.diff_server.server.access_control_allow_origin_header',
            'http://one.com,http://two.com,http://three.com')
     def test_cors_origin_header(self):
         """

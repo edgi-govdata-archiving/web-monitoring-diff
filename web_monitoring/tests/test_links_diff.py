@@ -1,8 +1,8 @@
 from pathlib import Path
 from pkg_resources import resource_filename
 import pytest
-from web_monitoring.diff_errors import UndiffableContentError
-from web_monitoring.links_diff import links_diff, links_diff_html
+from web_monitoring.diff.diff_errors import UndiffableContentError
+from web_monitoring.diff.links_diff import links_diff, links_diff_html
 
 
 def test_links_diff_only_includes_links():

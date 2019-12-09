@@ -20,7 +20,7 @@ from enum import Enum
 from functools import lru_cache
 import copy
 import difflib
-from web_monitoring.utils import get_color_palette
+from ..utils import get_color_palette
 import html
 import html5_parser
 import logging
