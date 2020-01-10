@@ -35,8 +35,8 @@ Legacy projects that may be revisited:
 
 ## Installation Instructions
 
-1. Get Python 3.6. This packages makes use of modern Python features and
-   requires Python 3.6+.  If you don't have Python 3.6, we recommend using
+1. Get Python 3.7. This packages makes use of modern Python features and
+   requires Python 3.7+.  If you don't have Python 3.7, we recommend using
    [conda](https://conda.io/miniconda.html) to install it. (You don't need admin
    privileges to install or use it, and it won't interfere with any other
    installations of Python already on your system.)
