@@ -1,6 +1,6 @@
 import json
-import mimetypes
 import os
+import unittest
 from pathlib import Path
 import re
 import tempfile
@@ -316,10 +316,6 @@ def fixture_path(fixture):
 # ability to serve a [fixture] file.
 def mock_tornado_request(fixture, headers=None):
     path = fixture_path(fixture)
-    headers = headers or {}
-    if 'Content-Type' not in headers:
-        guess = mimetypes.guess_type(fixture)[0]
-        headers['Content-Type'] = guess or 'text/html; charset=UTF-8'
     with open(path, 'rb') as f:
         body = f.read()
         return df.MockResponse(f'file://{path}', body, headers)
@@ -388,3 +384,25 @@ class MockAsyncHttpClient(AsyncHTTPClient):
             if stub['matcher'](request):
                 return stub
         raise ValueError(f'No response stub for {request.url}')
+
+
+class MockResponderHeadersTest(unittest.TestCase):
+    def test_pdf_extension(self):
+        response = df.MockResponse(f'file://{fixture_path("simple.pdf")}', '')
+        assert response.headers['Content-Type'] == 'application/pdf'
+
+    def test_html_extension(self):
+        response = df.MockResponse(f'file://{fixture_path("unknown_encoding.html")}', '')
+        assert response.headers['Content-Type'] == 'text/html'
+
+    def test_txt_extension(self):
+        response = df.MockResponse(f'file://{fixture_path("empty.txt")}', '')
+        assert response.headers['Content-Type'] == 'text/plain'
+
+    def test_no_extension_should_assume_html(self):
+        response = df.MockResponse(f'file://{fixture_path("unknown_encoding")}', '')
+        assert response.headers['Content-Type'] == 'text/html'
+
+    def test_unknown_extension_should_assume_html(self):
+        response = df.MockResponse(f'file://{fixture_path("unknown_encoding.notarealextension")}', '')
+        assert response.headers['Content-Type'] == 'text/html'

@@ -5,6 +5,7 @@ from docopt import docopt
 import hashlib
 import inspect
 import functools
+import mimetypes
 import os
 import re
 import cchardet
@@ -112,11 +113,32 @@ class MockRequest:
 
 class MockResponse:
     "An HTTPResponse-like object for local file:/// requests."
-    def __init__(self, url, body, headers):
+    def __init__(self, url, body, headers=None):
         self.request = MockRequest(url)
         self.body = body
         self.headers = headers
         self.error = None
+
+        if self.headers is None:
+            self.headers = {}
+
+        if 'Content-Type' not in self.headers:
+            self.headers.update(self._get_content_type_headers_from_url(url))
+
+    @staticmethod
+    def _get_content_type_headers_from_url(url):
+        # If the extension is not recognized, assume text/html
+        headers = {'Content-Type': 'text/html'}
+
+        content_type, content_encoding = mimetypes.guess_type(url)
+
+        if content_type is not None:
+            headers['Content-Type'] = content_type
+
+        if content_encoding is not None:
+            headers['Content-Encoding'] = content_encoding
+
+        return headers
 
 
 DEBUG_MODE = os.environ.get('DIFFING_SERVER_DEBUG', 'False').strip().lower() == 'true'
@@ -232,11 +254,10 @@ class DiffHandler(BaseHandler):
             if os.environ.get('WEB_MONITORING_APP_ENV') == 'production':
                 raise PublicError(403, 'Local files cannot be used in '
                                        'production environment.')
-            # FIXME: set content-type based on file extension.
-            headers = {'Content-Type': 'application/html; charset=UTF-8'}
+
             with open(url[7:], 'rb') as f:
                 body = f.read()
-                response = MockResponse(url, body, headers)
+                response = MockResponse(url, body)
         else:
             # Include request headers defined by the query param
             # `pass_headers=HEADER_NAMES` in the upstream request. This is
