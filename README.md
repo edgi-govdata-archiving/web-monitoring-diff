@@ -41,42 +41,60 @@ Legacy projects that may be revisited:
    privileges to install or use it, and it won't interfere with any other
    installations of Python already on your system.)
 
-2. Install the package.
+2. Install libxml2 and libxslt. (This package uses lxml, which requires your system to have the libxml2 and libxslt libraries.)
+
+    On MacOS, use Homebrew:
+    
+    ```sh
+    brew install libxml2
+    brew install libxslt
+    ```
+    
+    On Debian Linux:
+    
+    ```sh
+    apt-get install libxml2-dev libxslt-dev
+    ```
+    
+    On other systems, the packages might have slightly different names.
+
+3. Install the package.
 
     ```sh
     pip install -r requirements.txt
     python setup.py develop
     ```
 
-3. Copy the script `.env.example` to `.env` and supply any local configuration
+4. Copy the script `.env.example` to `.env` and supply any local configuration
    info you need. (Only some of the package's functionality requires this.)
    Apply the configuration:
 
     ```sh
     source .env
     ```
-4. See module comments and docstrings for more usage information. Also see the
+    
+5. See module comments and docstrings for more usage information. Also see the
    command line tool ``wm``, which is installed with the package. For help, use
 
    ```sh
    wm --help
    ```
 
-5. To run the tests or build the documentation, first install the development
+6. To run the tests or build the documentation, first install the development
    requirements.
 
    ```sh
    pip install -r dev-requirements.txt
    ```
 
-6. To build the docs:
+7. To build the docs:
 
    ```sh
    cd docs
    make html
    ```
 
-7. To run the tests:
+8. To run the tests:
 
    ```sh
    python run_tests.py
