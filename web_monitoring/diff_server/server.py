@@ -10,6 +10,7 @@ import os
 import re
 import cchardet
 import sentry_sdk
+import sys
 import tornado.httpclient
 import tornado.ioloop
 import tornado.web
@@ -66,6 +67,20 @@ XML_PROLOG_PATTERN = re.compile(
     b'<?xml\\s[^>]*encoding=[\'"]([^\'"]+)[\'"].*\?>',
     re.IGNORECASE)
 
+MAX_BODY_SIZE = None
+try:
+    MAX_BODY_SIZE = int(os.environ.get('DIFFER_MAX_BODY_SIZE', 0))
+    if MAX_BODY_SIZE < 0:
+        print('DIFFER_MAX_BODY_SIZE must be >= 0', file=sys.stderr)
+        sys.exit(1)
+except ValueError:
+    print(f'DIFFER_MAX_BODY_SIZE must be an integer', file=sys.stderr)
+    sys.exit(1)
+
+# TODO: we'd like to support CurlAsyncHTTPClient, but we need to figure out how
+# to enforce something like max_body_size with it.
+tornado.httpclient.AsyncHTTPClient.configure(None,
+                                             max_body_size=MAX_BODY_SIZE)
 client = tornado.httpclient.AsyncHTTPClient()
 
 
@@ -287,6 +302,19 @@ class DiffHandler(BaseHandler):
                                   f'Timed out while fetching "{url}"',
                                   'Could not fetch upstream content',
                                   extra={'url': url})
+            except tornado.simple_httpclient.HTTPStreamClosedError:
+                # Unfortunately we get pretty ambiguous info if the connection
+                # was closed because we exceeded the max size. :(
+                message = f'The connection was closed while fetching "{url}"'
+                if MAX_BODY_SIZE:
+                    message += (f' -- this may have been caused by a large '
+                                f'response (the maximum diffable response is '
+                                f'{MAX_BODY_SIZE} bytes)')
+                raise PublicError(502,
+                                  message,
+                                  'Connection closed while fetching upstream',
+                                  extra={'url': url,
+                                         'max_size': MAX_BODY_SIZE})
             except tornado.httpclient.HTTPError as error:
                 # If the response is actually coming from a web archive,
                 # allow error codes. The Memento-Datetime header indicates
@@ -296,14 +324,15 @@ class DiffHandler(BaseHandler):
                         error.response.headers.get('Memento-Datetime') is not None:
                     response = error.response
                 else:
+                    code = error.response and error.response.code
                     raise PublicError(502,
-                                      (f'Received a {error.response.code} '
+                                      (f'Received a {code or "?"} '
                                        f'status while fetching "{url}": '
                                        f'{error}'),
                                       log_message='Could not fetch upstream content',
                                       extra={'type': 'UPSTREAM_ERROR',
                                              'url': url,
-                                             'upstream_code': error.response.code})
+                                             'upstream_code': code})
 
         if response and expected_hash:
             actual_hash = hashlib.sha256(response.body).hexdigest()

@@ -4,14 +4,16 @@ import unittest
 from pathlib import Path
 import re
 import tempfile
-from tornado.testing import AsyncHTTPTestCase
+from tornado.testing import AsyncHTTPTestCase, bind_unused_port
 from unittest.mock import patch
 import web_monitoring.diff_server.server as df
 from web_monitoring.diff.diff_errors import UndecodableContentError
 import web_monitoring
 from tornado.escape import utf8
 from tornado.httpclient import HTTPResponse, AsyncHTTPClient
+from tornado.httpserver import HTTPServer
 from tornado.httputil import HTTPHeaders
+import tornado.web
 from io import BytesIO
 
 
@@ -304,6 +306,51 @@ class DiffingServerExceptionHandlingTest(DiffingServerTestCase):
         assert 'hash' in json.loads(response.body)['error']
 
 
+class DiffingServerResponseSizeTest(DiffingServerTestCase):
+    def test_succeeds_if_response_is_small_enough(self):
+        async def responder(handler):
+            text = (80 * 1024) * 'x'
+            handler.write(text.encode('utf-8'))
+
+        client = tornado.httpclient.AsyncHTTPClient(force_instance=True,
+                                                    max_body_size=100 * 1024)
+        with patch.object(df, 'client', client):
+            with SimpleHttpServer(responder) as server:
+                response = self.fetch('/html_source_dmp?'
+                                      f'a={server.url("/whatever1")}&'
+                                      f'b={server.url("/whatever2")}')
+                assert response.code == 200
+
+    def test_stops_if_response_is_too_big(self):
+        async def responder(handler):
+            text = (110 * 1024) * 'x'
+            handler.write(text.encode('utf-8'))
+
+        client = tornado.httpclient.AsyncHTTPClient(force_instance=True,
+                                                    max_body_size=100 * 1024)
+        with patch.object(df, 'client', client):
+            with SimpleHttpServer(responder) as server:
+                response = self.fetch('/html_source_dmp?'
+                                      f'a={server.url("/whatever1")}&'
+                                      f'b={server.url("/whatever2")}')
+                assert response.code == 502
+
+    def test_stops_if_content_length_is_a_lie(self):
+        async def responder(handler):
+            handler.set_header('Content-Length', '1024')
+            text = (110 * 1024) * 'x'
+            handler.write(text.encode('utf-8'))
+
+        client = tornado.httpclient.AsyncHTTPClient(force_instance=True,
+                                                    max_body_size=100 * 1024)
+        with patch.object(df, 'client', client):
+            with SimpleHttpServer(responder) as server:
+                response = self.fetch('/html_source_dmp?'
+                                      f'a={server.url("/whatever1")}&'
+                                      f'b={server.url("/whatever2")}')
+                assert response.code == 502
+
+
 def mock_diffing_method(c_body):
     return
 
@@ -406,3 +453,42 @@ class MockResponderHeadersTest(unittest.TestCase):
     def test_unknown_extension_should_assume_html(self):
         response = df.MockResponse(f'file://{fixture_path("unknown_encoding.notarealextension")}', '')
         assert response.headers['Content-Type'] == 'text/html'
+
+
+class SimpleHttpServer:
+    """
+    Based on the internals of Tornado's AsyncHTTPTestCase. This is a simple
+    Tornado web server that just runs the provided callable for any request.
+
+    Parameters
+    ----------
+    handler : callable
+        Called whenever a request is made to the server. The first parameter
+        will be a Tornado `RequestHandler` instance.
+    """
+    def __init__(self, handler):
+        sock, port = bind_unused_port()
+        self._port = port
+        self._app = tornado.web.Application([(r".*", SimpleHttpServerHandler)],
+                                            debug=True,
+                                            actual_handler=handler)
+        self.http_server = HTTPServer(self._app)
+        self.http_server.add_sockets([sock])
+
+    def stop(self):
+        self.http_server.stop()
+
+    def url(self, path):
+        return f'http://localhost:{self._port}{path}'
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, type, value, traceback):
+        self.stop()
+
+
+class SimpleHttpServerHandler(tornado.web.RequestHandler):
+    async def get(self):
+        handler = self.settings.get('actual_handler')
+        await handler(self)
