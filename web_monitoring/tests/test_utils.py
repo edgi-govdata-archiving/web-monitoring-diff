@@ -1,7 +1,8 @@
 from datetime import datetime
+import pytest
 import queue
 import threading
-from web_monitoring.utils import extract_title, rate_limited, FiniteQueue
+from web_monitoring.utils import extract_title, RateLimit, FiniteQueue
 
 
 def test_extract_title():
@@ -35,30 +36,38 @@ def test_extract_title_handles_whitespace():
     assert title == 'THIS IS THE TITLE'
 
 
-def test_rate_limited():
-    start_time = datetime.utcnow()
-    for i in range(2):
-        with rate_limited(calls_per_second=2):
+class TestRateLimit:
+    def test_rate_limit(self):
+        limiter = RateLimit(per_second=2)
+        start_time = datetime.utcnow()
+        for i in range(2):
+            with limiter:
+                1 + 1
+        duration = datetime.utcnow() - start_time
+        assert duration.total_seconds() > 0.5
+
+    def test_separate_rate_limits_do_not_affect_each_other(self):
+        start_time = datetime.utcnow()
+
+        limit_a = RateLimit(2)
+        limit_b = RateLimit(2)
+        with limit_a:
             1 + 1
-    duration = datetime.utcnow() - start_time
-    assert duration.total_seconds() > 0.5
+        with limit_b:
+            1 + 1
+        with limit_a:
+            1 + 1
+        with limit_b:
+            1 + 1
 
+        duration = datetime.utcnow() - start_time
+        assert duration.total_seconds() > 0.5
+        assert duration.total_seconds() < 0.55
 
-def test_separate_rate_limited_groups_do_not_affect_each_other():
-    start_time = datetime.utcnow()
-
-    with rate_limited(calls_per_second=2, group='a'):
-        1 + 1
-    with rate_limited(calls_per_second=2, group='b'):
-        1 + 1
-    with rate_limited(calls_per_second=2, group='a'):
-        1 + 1
-    with rate_limited(calls_per_second=2, group='b'):
-        1 + 1
-
-    duration = datetime.utcnow() - start_time
-    assert duration.total_seconds() > 0.5
-    assert duration.total_seconds() < 0.55
+    def test_rate_limit_does_not_interfere_with_exceptions(self):
+        with pytest.raises(ValueError):
+            with RateLimit(2):
+                raise ValueError('OH NO!')
 
 
 class TestFiniteQueue:

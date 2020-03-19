@@ -1,5 +1,3 @@
-from collections import defaultdict
-from contextlib import contextmanager
 import hashlib
 import io
 import logging
@@ -41,36 +39,56 @@ def hash_content(content_bytes):
     return hashlib.sha256(content_bytes).hexdigest()
 
 
-_last_call_by_group = defaultdict(int)
-_rate_limit_lock = threading.Lock()
-
-
-@contextmanager
-def rate_limited(calls_per_second=2, group='default'):
+class RateLimit:
     """
-    A context manager that restricts entries to its body to occur only N times
-    per second (N can be a float). The current thread will be put to sleep in
-    order to delay calls.
+    RateLimit is a simple locking mechanism that can be used to enforce rate
+    limits and is safe to use across multiple threads. It can also be used as
+    a context manager.
+
+    Calling `rate_limit_instance.wait()` blocks until a minimum time has passed
+    since the last call. Using `with rate_limit_instance:` blocks entries to
+    the context until a minimum time since the last context entry.
 
     Parameters
     ----------
-    calls_per_second : float or int, optional
-        Maximum number of calls into this context allowed per second
-    group : string, optional
-        Unique name to scope rate limiting. If two contexts have different
-        `group` values, their timings will be tracked separately.
+    per_second : int or float
+        The maximum number of calls per second that are allowed. If 0, a call
+        to `wait()` will never block.
+
+    Examples
+    --------
+    Slow down a tight loop to only occur twice per second:
+
+    >>> limit = RateLimit(per_second=2)
+    >>> for x in range(10):
+    >>>     with limit:
+    >>>         print(x)
     """
-    if calls_per_second <= 0:
-        yield
-    else:
-        with _rate_limit_lock:
-            last_call = _last_call_by_group[group]
-            minimum_wait = 1.0 / calls_per_second
+    def __init__(self, per_second=10):
+        self._lock = threading.RLock()
+        self._last_call_time = 0
+        if per_second <= 0:
+            self._minimum_wait = 0
+        else:
+            self._minimum_wait = 1.0 / per_second
+
+    def wait(self):
+        if self._minimum_wait == 0:
+            return
+
+        with self._lock:
             current_time = time.time()
-            if current_time - last_call < minimum_wait:
-                time.sleep(minimum_wait - (current_time - last_call))
-            _last_call_by_group[group] = time.time()
-        yield
+            idle_time = current_time - self._last_call_time
+            if idle_time < self._minimum_wait:
+                time.sleep(self._minimum_wait - idle_time)
+
+            self._last_call_time = time.time()
+
+    def __enter__(self):
+        self.wait()
+
+    def __exit__(self, type, value, traceback):
+        pass
 
 
 def get_color_palette():
@@ -142,12 +160,19 @@ class FiniteQueue(queue.SimpleQueue):
     def __iter__(self):
         return self
 
-    def __next__(self):
+    def __next__(self, timeout=None):
         item = self.get()
         if item is self.QUEUE_END:
             raise StopIteration
 
         return item
+
+    def iterate_with_timeout(self, timeout):
+        while True:
+            try:
+                yield self.__next__(timeout)
+            except StopIteration:
+                return
 
 
 class DepthCountedContext:
