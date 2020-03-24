@@ -148,6 +148,7 @@ This project wouldn’t exist without a lot of amazing people’s help. Thanks t
 | [💻](# "Code") | [Luming Hao](https://github.com/lh00000000) |
 | [🤔](# "Ideas and Planning") | [Mike Hucka](https://github.com/mhucka) |
 | [💻](# "Code") | [Stuart Lynn](https://github.com/stuartlynn) |
+| [💻](# "Code") [⚠️](# "Tests") | [Julian Mclain](https://github.com/julianmclain) |
 | [💻](# "Code") | [Allan Pichardo](https://github.com/allanpichardo) |
 | [📖](# "Documentation") [📋](# "Organizer") | [Matt Price](https://github.com/titaniumbones) |
 | [💻](# "Code") | [Mike Rotondo](https://github.com/mrotondo) |
