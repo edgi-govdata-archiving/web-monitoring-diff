@@ -5,11 +5,13 @@ from docopt import docopt
 import hashlib
 import inspect
 import functools
+import logging
 import mimetypes
 import os
 import re
 import cchardet
 import sentry_sdk
+import signal
 import sys
 import tornado.httpclient
 import tornado.ioloop
@@ -18,6 +20,9 @@ import traceback
 import web_monitoring
 from ..diff import differs, html_diff_render, links_diff
 from ..diff.diff_errors import UndiffableContentError, UndecodableContentError
+from ..utils import Signal
+
+logger = logging.getLogger(__name__)
 
 # Track errors with Sentry.io. It will automatically detect the `SENTRY_DSN`
 # environment variable. If not set, all its methods will operate conveniently
@@ -27,7 +32,7 @@ sentry_sdk.init(ignore_errors=[KeyboardInterrupt])
 # by default. We don't really want those logs.
 sentry_sdk.integrations.logging.ignore_logger('tornado.access')
 
-DIFFER_PARALLELISM = os.environ.get('DIFFER_PARALLELISM', 10)
+DIFFER_PARALLELISM = int(os.environ.get('DIFFER_PARALLELISM', 10))
 
 # Map tokens in the REST API to functions in modules.
 # The modules do not have to be part of the web_monitoring package.
@@ -163,6 +168,60 @@ VALIDATE_TARGET_CERTIFICATES = \
 
 access_control_allow_origin_header = \
     os.environ.get('ACCESS_CONTROL_ALLOW_ORIGIN_HEADER')
+
+
+class DiffServer(tornado.web.Application):
+    terminating = False
+
+    def listen(self, port, address='', **kwargs):
+        self.server = super().listen(port, address, **kwargs)
+        return self.server
+
+    async def shutdown(self, immediate=False):
+        """
+        Shut down the server as gracefully as possible. If `immediate` is True,
+        the server will kill any in-progress diff processes immediately.
+        Otherwise, diffs are allowed to try and finish.
+        """
+        self.terminating = True
+        self.server.stop()
+        await self.shutdown_differs(immediate)
+        await self.server.close_all_connections()
+
+    async def shutdown_differs(self, immediate=False):
+        """Stop all child processes used for running diffs."""
+        differs = self.settings.get('diff_executor')
+        if differs:
+            if immediate:
+                # NOTE: this might be fragile since we are grabbing a private
+                # attribute. One alternative is to use psutil to find all child
+                # pids and indiscriminately kill them, but that has its own
+                # issues.
+                for child in differs._processes.values():
+                    child.kill()
+            else:
+                await tornado.ioloop.IOLoop.current().run_in_executor(
+                    None,
+                    lambda: differs.shutdown(wait=True)
+                )
+
+    def handle_signal(self, signal_type, frame):
+        """Handle a signal by shutting down the application and IO loop."""
+        loop = tornado.ioloop.IOLoop.current()
+
+        async def shutdown_and_stop():
+            try:
+                immediate = self.terminating
+                method = 'immediately' if immediate else 'gracefully'
+                print(f'Shutting down server {method}...')
+                await self.shutdown(immediate=immediate)
+                loop.stop()
+                print('Shutdown complete.')
+            except Exception:
+                logger.exception('Failed to gracefully stop server!')
+                sys.exit(1)
+
+        loop.add_callback_from_signal(shutdown_and_stop)
 
 
 class BaseHandler(tornado.web.RequestHandler):
@@ -570,7 +629,7 @@ def make_app():
     class BoundDiffHandler(DiffHandler):
         differs = DIFF_ROUTES
 
-    return tornado.web.Application([
+    return DiffServer([
         (r"/healthcheck", HealthCheckHandler),
         (r"/([A-Za-z0-9_]+)", BoundDiffHandler),
         (r"/", IndexHandler),
@@ -580,9 +639,10 @@ def make_app():
 
 def start_app(port):
     app = make_app()
-    app.listen(port)
     print(f'Starting server on port {port}')
-    tornado.ioloop.IOLoop.current().start()
+    app.listen(port)
+    with Signal((signal.SIGINT, signal.SIGTERM), app.handle_signal):
+        tornado.ioloop.IOLoop.current().start()
 
 
 def cli():
