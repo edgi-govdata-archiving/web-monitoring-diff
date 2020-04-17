@@ -335,9 +335,15 @@ class DiffingServerResponseSizeTest(DiffingServerTestCase):
                                       f'b={server.url("/whatever2")}')
                 assert response.code == 502
 
-    def test_stops_if_content_length_is_a_lie(self):
+    def test_stops_reading_early_when_content_length_is_a_lie(self):
         async def responder(handler):
+            # Tornado tries to be careful and prevent us from sending more
+            # content than we said we would, so we have to subvert it by
+            # flushing the headers and resetting its expectations before
+            # writing our output.
             handler.set_header('Content-Length', '1024')
+            handler.flush()
+            handler.request.connection._expected_content_remaining = None
             text = (110 * 1024) * 'x'
             handler.write(text.encode('utf-8'))
 
@@ -348,7 +354,19 @@ class DiffingServerResponseSizeTest(DiffingServerTestCase):
                 response = self.fetch('/html_source_dmp?'
                                       f'a={server.url("/whatever1")}&'
                                       f'b={server.url("/whatever2")}')
-                assert response.code == 502
+                # Even though the response was longer than the max_body_size,
+                # the client should have stopped reading when it hit the number
+                # of bytes set in the Content-Length, header, which is less
+                # than the client's limit. So what should actually happen is a
+                # successful diff of the first <Content-Length> bytes of the
+                # responses.
+                assert response.code == 200
+                # The responses should be the same, and should only be
+                # <Content-Length> bytes long (all our chars are basic ASCII
+                # in this case, so len(bytes) == len(characters)).
+                result = json.loads(response.body)
+                assert result['change_count'] == 0
+                assert len(result['diff'][0][1]) == 1024
 
 
 def mock_diffing_method(c_body):

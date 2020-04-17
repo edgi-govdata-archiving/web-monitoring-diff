@@ -365,15 +365,15 @@ class DiffHandler(BaseHandler):
                 # Unfortunately we get pretty ambiguous info if the connection
                 # was closed because we exceeded the max size. :(
                 message = f'The connection was closed while fetching "{url}"'
-                if MAX_BODY_SIZE:
+                if client.max_body_size:
                     message += (f' -- this may have been caused by a large '
                                 f'response (the maximum diffable response is '
-                                f'{MAX_BODY_SIZE} bytes)')
+                                f'{client.max_body_size} bytes)')
                 raise PublicError(502,
                                   message,
                                   'Connection closed while fetching upstream',
                                   extra={'url': url,
-                                         'max_size': MAX_BODY_SIZE})
+                                         'max_size': client.max_body_size})
             except tornado.httpclient.HTTPError as error:
                 # If the response is actually coming from a web archive,
                 # allow error codes. The Memento-Datetime header indicates
