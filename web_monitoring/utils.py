@@ -1,3 +1,4 @@
+import asyncio
 import hashlib
 import io
 import logging
@@ -37,6 +38,37 @@ def extract_title(content_bytes, encoding='utf-8'):
 def hash_content(content_bytes):
     "Create a version_hash for the content of a snapshot."
     return hashlib.sha256(content_bytes).hexdigest()
+
+
+def shutdown_executor_in_loop(executor):
+    """
+    Safely and asynchronously shut down a ProcessPoolExecutor from within an
+    event loop.
+
+    This returns an awaitable future, but is not a coroutine itself, so it's
+    safe to *not* await the result if you don't need to know when the shutdown
+    is complete.
+
+    The executor documentation suggests that calling ``shutdown(wait=False)``
+    won't actually trash the executor until all pending futures are done, but
+    this isn't actually true (at least not for ``ProcessPoolExecutor`` -- it
+    will raise ``OSError`` moments later in an internal polling function where
+    it can not be caught). To safely shutdown in an event loop, you *must* set
+    ``wait=True``. This handles that for you in an easy-to-use awaitable form.
+
+    See also: https://docs.python.org/3.7/library/concurrent.futures.html#concurrent.futures.Executor.shutdown
+
+    Parameters
+    ----------
+    executor : concurrent.futures.Executor
+
+    Returns
+    -------
+    shutdown : Awaitable
+    """
+    return asyncio.get_event_loop().run_in_executor(
+        None,
+        lambda: executor.shutdown(wait=True))
 
 
 class RateLimit:
