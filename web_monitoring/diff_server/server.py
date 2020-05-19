@@ -79,7 +79,7 @@ try:
         print('DIFFER_MAX_BODY_SIZE must be >= 0', file=sys.stderr)
         sys.exit(1)
 except ValueError:
-    print(f'DIFFER_MAX_BODY_SIZE must be an integer', file=sys.stderr)
+    print('DIFFER_MAX_BODY_SIZE must be an integer', file=sys.stderr)
     sys.exit(1)
 
 # TODO: we'd like to support CurlAsyncHTTPClient, but we need to figure out how
