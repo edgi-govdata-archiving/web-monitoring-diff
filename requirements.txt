@@ -1,4 +1,4 @@
-beautifulsoup4 ==4.8.2
+beautifulsoup4 ==4.9.0
 cchardet ==2.1.6
 python-dateutil ~=2.8.1
 diff_match_patch_python ~=1.0.2
