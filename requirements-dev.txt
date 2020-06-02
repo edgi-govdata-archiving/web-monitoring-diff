@@ -7,6 +7,6 @@ doctr ~=1.8.0
 ipython ~=7.13.0
 matplotlib ~=3.2.1
 numpydoc ~=0.9.2
-requests-mock ~=1.7.0
+requests-mock ~=1.8.0
 sphinx ~=2.4.4
 sphinx_rtd_theme ~=0.4.3
