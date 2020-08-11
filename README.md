@@ -1,4 +1,4 @@
-[![Code of Conduct](https://img.shields.io/badge/%E2%9D%A4-code%20of%20conduct-blue.svg?style=flat)](https://github.com/edgi-govdata-archiving/overview/blob/master/CONDUCT.md) &nbsp;[![Project Status Board](https://img.shields.io/badge/✔-Project%20Status%20Board-green.svg?style=flat)](https://github.com/orgs/edgi-govdata-archiving/projects/4)
+[![Code of Conduct](https://img.shields.io/badge/%E2%9D%A4-code%20of%20conduct-blue.svg?style=flat)](https://github.com/edgi-govdata-archiving/overview/blob/main/CONDUCT.md) &nbsp;[![Project Status Board](https://img.shields.io/badge/✔-Project%20Status%20Board-green.svg?style=flat)](https://github.com/orgs/edgi-govdata-archiving/projects/4)
 
 # web-monitoring-processing
 
@@ -30,7 +30,7 @@ Working and Under Active Development:
   (Uses the Tornado web framework.)
 
 Legacy projects that may be revisited:
-* [Example HTML](https://github.com/edgi-govdata-archiving/web-monitoring-processing/tree/master/archives) providing useful test cases.
+* [Example HTML](https://github.com/edgi-govdata-archiving/web-monitoring-processing/tree/main/archives) providing useful test cases.
 
 
 ## Installation Instructions
@@ -44,18 +44,18 @@ Legacy projects that may be revisited:
 2. Install libxml2 and libxslt. (This package uses lxml, which requires your system to have the libxml2 and libxslt libraries.)
 
     On MacOS, use Homebrew:
-    
+
     ```sh
     brew install libxml2
     brew install libxslt
     ```
-    
+
     On Debian Linux:
-    
+
     ```sh
     apt-get install libxml2-dev libxslt-dev
     ```
-    
+
     On other systems, the packages might have slightly different names.
 
 3. Install the package.
@@ -72,7 +72,7 @@ Legacy projects that may be revisited:
     ```sh
     source .env
     ```
-    
+
 5. See module comments and docstrings for more usage information. Also see the
    command line tool ``wm``, which is installed with the package. For help, use
 
@@ -127,12 +127,12 @@ We usually create *merge commits* on the `release` branch that note the PRs incl
 
 ## Code of Conduct
 
-This repository falls under EDGI's [Code of Conduct](https://github.com/edgi-govdata-archiving/overview/blob/master/CONDUCT.md).
+This repository falls under EDGI's [Code of Conduct](https://github.com/edgi-govdata-archiving/overview/blob/main/CONDUCT.md).
 
 
 ## Contributors
 
-This project wouldn’t exist without a lot of amazing people’s help. Thanks to the following for all their contributions! See our [contributing guidelines](https://github.com/edgi-govdata-archiving/web-monitoring-processing/blob/master/CONTRIBUTING.md) to find out how you can help.
+This project wouldn’t exist without a lot of amazing people’s help. Thanks to the following for all their contributions! See our [contributing guidelines](https://github.com/edgi-govdata-archiving/web-monitoring-processing/blob/main/CONTRIBUTING.md) to find out how you can help.
 
 <!-- ALL-CONTRIBUTORS-LIST:START -->
 | Contributions | Name |
@@ -168,4 +168,4 @@ This program is free software: you can redistribute it and/or modify it under th
 
 This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 
-See the [`LICENSE`](https://github.com/edgi-govdata-archiving/webpage-versions-processing/blob/master/LICENSE) file for details.
+See the [`LICENSE`](https://github.com/edgi-govdata-archiving/webpage-versions-processing/blob/main/LICENSE) file for details.
