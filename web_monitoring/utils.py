@@ -4,6 +4,7 @@ import io
 import logging
 import lxml.html
 import os
+from PyPDF2 import PdfFileReader
 import queue
 import re
 import requests
@@ -33,6 +34,12 @@ def extract_title(content_bytes, encoding='utf-8'):
 
     # In HTML, all consecutive whitespace (including line breaks) collapses
     return WHITESPACE_PATTERN.sub(' ', title.text.strip())
+
+
+def extract_pdf_title(content_bytes):
+    pdf = PdfFileReader(io.BytesIO(content_bytes))
+    info = pdf.getDocumentInfo()
+    return info.title
 
 
 def hash_content(content_bytes):
