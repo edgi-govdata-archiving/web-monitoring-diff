@@ -12,5 +12,5 @@ sentry-sdk ~=0.17.1
 requests ~=2.24.0
 toolz ~=0.10.0
 tornado ~=6.0.4
-tqdm ~=4.48.0
+tqdm ~=4.48.2
 wayback ~=0.2.3
