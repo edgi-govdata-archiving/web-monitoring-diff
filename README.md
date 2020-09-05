@@ -41,19 +41,20 @@ Legacy projects that may be revisited:
    privileges to install or use it, and it won't interfere with any other
    installations of Python already on your system.)
 
-2. Install libxml2 and libxslt. (This package uses lxml, which requires your system to have the libxml2 and libxslt libraries.)
+2. Install libxml2, libxslt, and openssl. (This package uses lxml, which requires your system to have the libxml2 and libxslt libraries, and pycurl, which requires libcurl [built-in on MacOS] and openssl.)
 
     On MacOS, use Homebrew:
 
     ```sh
     brew install libxml2
     brew install libxslt
+    brew install openssl
     ```
 
     On Debian Linux:
 
     ```sh
-    apt-get install libxml2-dev libxslt-dev
+    apt-get install libxml2-dev libxslt-dev libssl-dev openssl libcurl4-openssl-dev
     ```
 
     On other systems, the packages might have slightly different names.
@@ -62,6 +63,14 @@ Legacy projects that may be revisited:
 
     ```sh
     pip install -r requirements.txt
+    python setup.py develop
+    ```
+
+    **On MacOS,** you may need additional configuration to use the Homebrew
+    openssl. Try the following:
+
+    ```sh
+    PYCURL_SSL_LIBRARY=openssl LDFLAGS="-L/usr/local/opt/openssl/lib" CPPFLAGS="-I/usr/local/opt/openssl/include" pip install -r requirements.txt
     python setup.py develop
     ```
 

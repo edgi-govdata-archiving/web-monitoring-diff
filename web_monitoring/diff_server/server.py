@@ -8,11 +8,14 @@ import functools
 import logging
 import mimetypes
 import os
+import pycurl
 import re
 import cchardet
 import sentry_sdk
 import signal
 import sys
+from tornado.curl_httpclient import CurlAsyncHTTPClient, CurlError
+import tornado.simple_httpclient
 import tornado.httpclient
 import tornado.ioloop
 import tornado.web
@@ -82,11 +85,37 @@ except ValueError:
     print('DIFFER_MAX_BODY_SIZE must be an integer', file=sys.stderr)
     sys.exit(1)
 
-# TODO: we'd like to support CurlAsyncHTTPClient, but we need to figure out how
-# to enforce something like max_body_size with it.
-tornado.httpclient.AsyncHTTPClient.configure(None,
+
+class LimitedCurlAsyncHTTPClient(CurlAsyncHTTPClient):
+    """
+    A customized version of Tornado's CurlAsyncHTTPClient that adds support for
+    maximum response body sizes. The API is the same as that for Tornado's
+    SimpleAsyncHTTPClient: set ``max_body_size`` to an integer representing the
+    maximum number of bytes in a response body.
+    """
+    def initialize(self, max_clients=10, defaults=None, max_body_size=None):
+        self.max_body_size = max_body_size
+        defaults = defaults or {}
+        defaults['prepare_curl_callback'] = self.prepare_curl
+        super().initialize(max_clients=max_clients, defaults=defaults)
+
+    def prepare_curl(self, curl):
+        if self.max_body_size:
+            # NOTE: cURL's docs suggest this doesn't work if the server doesn't
+            # send a Content-Length header, but it seems to do just fine in
+            # tests. ¯\_(ツ)_/¯
+            curl.setopt(pycurl.MAXFILESIZE, self.max_body_size)
+
+
+HTTP_CLIENT = LimitedCurlAsyncHTTPClient
+if os.getenv('USE_SIMPLE_HTTP_CLIENT'):
+    HTTP_CLIENT = None
+tornado.httpclient.AsyncHTTPClient.configure(HTTP_CLIENT,
                                              max_body_size=MAX_BODY_SIZE)
-client = tornado.httpclient.AsyncHTTPClient()
+
+
+def get_http_client():
+    return tornado.httpclient.AsyncHTTPClient()
 
 
 class PublicError(tornado.web.HTTPError):
@@ -329,6 +358,12 @@ class DiffHandler(BaseHandler):
             with open(url[7:], 'rb') as f:
                 body = f.read()
                 response = MockResponse(url, body)
+        # Only support HTTP(S) URLs.
+        elif not url.startswith('http://') and not url.startswith('https://'):
+            raise PublicError(400,
+                              f'URL must use HTTP or HTTPS protocol: "{url}"',
+                              'Invalid URL for upstream content',
+                              extra={'url': url})
         else:
             # Include request headers defined by the query param
             # `pass_headers=HEADER_NAMES` in the upstream request. This is
@@ -344,15 +379,19 @@ class DiffHandler(BaseHandler):
                         headers[header_key] = header_value
 
             try:
+                client = get_http_client()
                 response = await client.fetch(url, headers=headers,
                                               validate_cert=VALIDATE_TARGET_CERTIFICATES)
             except ValueError as error:
                 raise PublicError(400, str(error))
+            # Only raised by the simple client and not by the cURL client.
             except OSError as error:
                 raise PublicError(502,
                                   f'Could not fetch "{url}": {error}',
                                   'Could not fetch upstream content',
                                   extra={'url': url, 'cause': str(error)})
+
+            # --- SIMPLE CLIENT ERRORS ----------------------------------------
             except tornado.simple_httpclient.HTTPTimeoutError:
                 raise PublicError(504,
                                   f'Timed out while fetching "{url}"',
@@ -371,6 +410,46 @@ class DiffHandler(BaseHandler):
                                   'Connection closed while fetching upstream',
                                   extra={'url': url,
                                          'max_size': client.max_body_size})
+
+            # --- CURL CLIENT ERRORS ------------------------------------------
+            except CurlError as error:
+                # Documentation for cURL error codes:
+                #   https://curl.haxx.se/libcurl/c/libcurl-errors.html
+                # PyCurl has constants named `E_*` vs. libcurl's `CURLE_*`
+                if error.errno == pycurl.E_URL_MALFORMAT:
+                    raise PublicError(400,
+                                      str(error),
+                                      'Invalid URL for cURL',
+                                      extra={'url': url})
+                # TODO: raise a nicer error from LimitedCurlAsyncHTTPClient
+                elif error.errno == pycurl.E_FILESIZE_EXCEEDED:
+                    raise PublicError(502,
+                                      f'Upstream response too big for "{url}"'
+                                      f'(max: {client.max_body_size} bytes)',
+                                      'Upstream content too big',
+                                      extra={'url': url,
+                                             'max_size': client.max_body_size})
+                elif (error.errno == pycurl.E_COULDNT_RESOLVE_PROXY
+                      or error.errno == pycurl.E_COULDNT_CONNECT
+                      or error.errno == 8  # E_WEIRD_SERVER_REPLY
+                      or error.errno == pycurl.E_REMOTE_ACCESS_DENIED
+                      or error.errno == pycurl.E_HTTP2):
+                    raise PublicError(502,
+                                      f'Could not fetch "{url}": {error}',
+                                      'Could not fetch upstream content',
+                                      extra={'url': url, 'cause': str(error)})
+                elif error.errno == pycurl.E_OPERATION_TIMEDOUT:
+                    raise PublicError(504,
+                                      f'Timed out while fetching "{url}"',
+                                      'Could not fetch upstream content',
+                                      extra={'url': url})
+                else:
+                    raise PublicError(502,
+                                      f'Unknown error fetching "{url}"',
+                                      f'Unknown error fetching upstream content: {error}',
+                                      extra={'url': url})
+
+            # --- COMMON ERRORS SUPPORTED BY ALL CLIENTS ----------------------
             except tornado.httpclient.HTTPError as error:
                 # If the response is actually coming from a web archive,
                 # allow error codes. The Memento-Datetime header indicates
