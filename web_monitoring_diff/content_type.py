@@ -2,7 +2,7 @@
 # a given diffing algorithm
 
 import re
-from .diff_errors import UndiffableContentError
+from .exceptions import UndiffableContentError
 
 # Matches content strings that are probably not HTML.
 # See also https://dev.w3.org/html5/cts/html5-type-sniffing.html and

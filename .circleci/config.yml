@@ -8,7 +8,7 @@ jobs:
       - checkout
       - restore_cache:
           keys:
-            - processing-{{ arch }}-{{ checksum "requirements.txt" }}-{{ checksum "dev-requirements.txt" }}
+            - processing-{{ arch }}-{{ checksum "requirements.txt" }}-{{ checksum "requirements-dev.txt" }}
             - processing-{{ arch }}-
 
       # Bundle install dependencies
@@ -23,7 +23,7 @@ jobs:
 
       # Store bundle cache
       - save_cache:
-          key: processing-{{ arch }}-{{ checksum "requirements.txt" }}-{{ checksum "dev-requirements.txt" }}
+          key: processing-{{ arch }}-{{ checksum "requirements.txt" }}-{{ checksum "requirements-dev.txt" }}
           paths:
             - venv
 
@@ -31,7 +31,7 @@ jobs:
           name: Tests
           command: |
             . venv/bin/activate
-            coverage run run_tests.py -v web_monitoring/tests/
+            coverage run -m pytest -vv
       - run:
           name: Coverage
           command: |
@@ -41,7 +41,7 @@ jobs:
           name: Code linting
           command: |
             . venv/bin/activate
-            pyflakes web_monitoring
+            flake8 .
       - run:
           name: Build docs
           command: |
@@ -88,6 +88,7 @@ workflows:
     jobs:
       - build
       - build_docker
+      # XXX: Temporarily disable while in the middle of extracting this package
       - publish_docker:
           requires:
             - build

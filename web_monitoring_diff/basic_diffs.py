@@ -1,6 +1,6 @@
 from bs4 import Comment
 from diff_match_patch import diff, diff_bytes
-from ..utils import get_color_palette
+from .utils import get_color_palette
 from htmldiffer.diff import HTMLDiffer
 import htmltreediff
 import html5_parser

@@ -4,18 +4,17 @@ import os
 from pathlib import Path
 from pkg_resources import resource_filename
 import pytest
-from web_monitoring.db import Client
-from web_monitoring.diff.differs import html_tree_diff, html_differ
-from web_monitoring.diff.html_diff_render import html_diff_render
+from web_monitoring_diff import html_tree_diff, html_differ
+from web_monitoring_diff.html_render_diff import html_diff_render
 
 
 def lookup_pair(fn):
     """Read example data named {fn}.before and {fn}.after"""
     fn1 = 'example_data/{}.before'.format(fn)
     fn2 = 'example_data/{}.after'.format(fn)
-    with open(resource_filename('web_monitoring', fn1)) as f:
+    with open(resource_filename('web_monitoring_diff', fn1)) as f:
         before = f.read()
-    with open(resource_filename('web_monitoring', fn2)) as f:
+    with open(resource_filename('web_monitoring_diff', fn2)) as f:
         after = f.read()
     return before, after
 
@@ -44,7 +43,7 @@ cases = ['change-tag',
         ]
 
 
-OUTPUT_DIR = Path('diff_output_{}'.format(datetime.now().isoformat()))
+OUTPUT_DIR = Path('test_output') / 'diff_output_{}'.format(datetime.now().isoformat())
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 
@@ -110,31 +109,16 @@ CACHE_DIR = Path(__file__).resolve().parent / Path('fixtures', 'versions')
 os.makedirs(CACHE_DIR, exist_ok=True)
 
 
-def get_staging_cli():
-    try:
-        email = os.environ['WEB_MONITORING_DB_STAGING_EMAIL']
-        password = os.environ['WEB_MONITORING_DB_STAGING_PASSWORD']
-        url = os.environ['WEB_MONITORING_DB_STAGING_URL']
-    except KeyError:
-        raise Exception('''You must have the following env vars set to update fixture content:
-            WEB_MONITORING_DB_STAGING_EMAIL,
-            WEB_MONITORING_DB_STAGING_PASSWORD,
-            WEB_MONITORING_DB_STAGING_URL''')
-    return Client(email, password, url)
-
-
 def get_staging_content(version_id):
     # Try our in-memory cache, the on-disk cache, and finally the network.
     try:
         return version_content_cache[version_id]
     except KeyError:
-        try:
-            with open(CACHE_DIR / Path(version_id), 'r') as f:
-                content = f.read()
-        except FileNotFoundError:
-            content = get_staging_cli().get_version_content(version_id)
-            with open(CACHE_DIR / Path(version_id), 'w') as f:
-                f.write(content)
+        # These data files come from Web Monitoring's live server. If they need
+        # to be updated or replaced for some reason, they should be the
+        # archived response bodies associated with the given version_id.
+        with open(CACHE_DIR / Path(version_id), 'r') as f:
+            content = f.read()
         version_content_cache[version_id] = content
         return content
 

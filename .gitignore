@@ -68,8 +68,8 @@ target/
 # pytest
 .pytest_cache
 
-# diff_output
-diff_output_*
+# test_output
+test_output
 
 # environment file with secrets
 .env
