@@ -1,0 +1,11 @@
+# Experimental Dependencies
+#
+# These packages provide more experimental, optional diffing algorithms that
+# are not publicly available (or not up-to-date) on PyPI. Because they can't be
+# installed from a public package manager, you'll need to use pip to install
+# them if you want them to be available:
+#
+#     pip install -r requirements-experimental.txt
+#
+git+https://github.com/anastasia/htmldiffer@develop
+git+https://github.com/danielballan/htmltreediff@customize

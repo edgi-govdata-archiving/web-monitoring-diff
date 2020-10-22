@@ -20,13 +20,13 @@ from enum import Enum
 from functools import lru_cache
 import copy
 import difflib
-from ..utils import get_color_palette
+from .utils import get_color_palette
 import html
 import html5_parser
 import logging
 import re
 from .content_type import raise_if_not_diffable_html
-from .differs import compute_dmp_diff
+from .basic_diffs import compute_dmp_diff
 
 # Imports only used in forked tokenization code; may be ripe for removal:
 from lxml import etree

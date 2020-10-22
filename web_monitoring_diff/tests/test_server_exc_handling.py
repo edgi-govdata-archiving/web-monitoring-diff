@@ -7,9 +7,9 @@ import re
 import tempfile
 from tornado.testing import AsyncHTTPTestCase, bind_unused_port
 from unittest.mock import patch
-import web_monitoring.diff_server.server as df
-from web_monitoring.diff.diff_errors import UndecodableContentError
-import web_monitoring
+import web_monitoring_diff.server.server as df
+from web_monitoring_diff.exceptions import UndecodableContentError
+import web_monitoring_diff
 from tornado.escape import utf8
 from tornado.httpclient import HTTPResponse, AsyncHTTPClient
 from tornado.httpserver import HTTPServer
@@ -47,7 +47,7 @@ class DiffingServerIndexTest(DiffingServerTestCase):
     def test_version(self):
         response = self.fetch('/')
         json_response = json.loads(response.body)
-        assert json_response['version'] == web_monitoring.__version__
+        assert json_response['version'] == web_monitoring_diff.__version__
 
 
 class DiffingServerLocalHandlingTest(DiffingServerTestCase):
@@ -231,7 +231,7 @@ class DiffingServerExceptionHandlingTest(DiffingServerTestCase):
             self.assertEqual(response.code, 200)
             assert 'change_count' in json.loads(response.body)
 
-    @patch('web_monitoring.diff_server.server.access_control_allow_origin_header', '*')
+    @patch('web_monitoring_diff.server.server.access_control_allow_origin_header', '*')
     def test_check_cors_headers(self):
         """
         Since we have set Access-Control-Allow-Origin: * on app init,
@@ -248,7 +248,7 @@ class DiffingServerExceptionHandlingTest(DiffingServerTestCase):
         assert response.headers.get('Access-Control-Allow-Headers') == 'x-requested-with'
         assert response.headers.get('Access-Control-Allow-Methods') == 'GET, OPTIONS'
 
-    @patch('web_monitoring.diff_server.server.access_control_allow_origin_header',
+    @patch('web_monitoring_diff.server.server.access_control_allow_origin_header',
            'http://one.com,http://two.com,http://three.com')
     def test_cors_origin_header(self):
         """

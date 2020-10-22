@@ -12,9 +12,11 @@ WORKDIR /app
 # Copy the requirements.txt alone into the container at /app
 # so that they can be cached more aggressively than the rest of the source.
 ADD requirements.txt /app
-
-# Install any needed packages specified in requirements.txt
 RUN pip install --trusted-host pypi.python.org -r requirements.txt
+ADD requirements-server.txt /app
+RUN pip install --trusted-host pypi.python.org -r requirements-server.txt
+ADD requirements-experimental.txt /app
+RUN pip install --trusted-host pypi.python.org -r requirements-experimental.txt
 
 # Copy the rest of the source.
 ADD . /app
@@ -26,4 +28,4 @@ RUN pip install .
 EXPOSE 80
 
 # Run server on port 80 when the container launches.
-CMD ["wm-diffing-server", "80"]
+CMD ["web-monitoring-diff-server", "80"]

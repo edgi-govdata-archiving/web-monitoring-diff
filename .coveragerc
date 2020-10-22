@@ -1,6 +1,6 @@
 [run]
 source =
-    web_monitoring
+    web_monitoring_diff
 [report]
 omit =
     */python?.?/*

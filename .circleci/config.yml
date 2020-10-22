@@ -1,15 +1,18 @@
 version: 2
 jobs:
   build:
-    working_directory: ~/web-monitoring-processing
+    working_directory: ~/web-monitoring-diff
     docker:
       - image: circleci/python:3.7
     steps:
       - checkout
       - restore_cache:
           keys:
-            - processing-{{ arch }}-{{ checksum "requirements.txt" }}-{{ checksum "dev-requirements.txt" }}
-            - processing-{{ arch }}-
+            - cache-v1-{{ arch }}-{{ checksum "requirements.txt" }}-{{ checksum "requirements-server.txt" }}-{{ checksum "requirements-dev.txt" }}-{{ checksum "requirements-experimental.txt" }}
+            - cache-v1-{{ arch }}-{{ checksum "requirements.txt" }}-{{ checksum "requirements-server.txt" }}-{{ checksum "requirements-dev.txt" }}-
+            - cache-v1-{{ arch }}-{{ checksum "requirements.txt" }}-{{ checksum "requirements-server.txt" }}-
+            - cache-v1-{{ arch }}-{{ checksum "requirements.txt" }}-
+            - cache-v1-{{ arch }}-
 
       # Bundle install dependencies
       - run:
@@ -17,13 +20,12 @@ jobs:
           command: |
             python -m venv venv
             . venv/bin/activate
-            pip install -r requirements.txt
-            pip install -r dev-requirements.txt
-            python setup.py install
+            pip install -e .[server,dev] --no-binary lxml
+            pip install -r requirements-experimental.txt
 
       # Store bundle cache
       - save_cache:
-          key: processing-{{ arch }}-{{ checksum "requirements.txt" }}-{{ checksum "dev-requirements.txt" }}
+          key: cache-v1-{{ arch }}-{{ checksum "requirements.txt" }}-{{ checksum "requirements-server.txt" }}-{{ checksum "requirements-dev.txt" }}-{{ checksum "requirements-experimental.txt" }}
           paths:
             - venv
 
@@ -31,7 +33,7 @@ jobs:
           name: Tests
           command: |
             . venv/bin/activate
-            coverage run run_tests.py -v web_monitoring/tests/
+            coverage run -m pytest -vv
       - run:
           name: Coverage
           command: |
@@ -41,24 +43,24 @@ jobs:
           name: Code linting
           command: |
             . venv/bin/activate
-            pyflakes web_monitoring
-      - run:
-          name: Build docs
-          command: |
-            . venv/bin/activate
-            cd docs && make html
+            flake8 .
+    #   - run:
+    #       name: Build docs
+    #       command: |
+    #         . venv/bin/activate
+    #         cd docs && make html
 
   build_docker:
     machine: true
     steps:
       - checkout
       - run: |
-          docker build -t envirodgi/processing:$CIRCLE_SHA1 .
+          docker build -t envirodgi/web-monitoring-diff:$CIRCLE_SHA1 .
       - run:
           name: Save Image
           command: |
             mkdir /tmp/workspace
-            docker save --output /tmp/workspace/docker-image envirodgi/processing:$CIRCLE_SHA1
+            docker save --output /tmp/workspace/docker-image envirodgi/web-monitoring-diff:$CIRCLE_SHA1
       - persist_to_workspace:
           root: /tmp/workspace
           paths:
@@ -74,13 +76,13 @@ jobs:
           command: docker load --input /tmp/workspace/docker-image
       - run:
           name: Re-tag Image
-          command: docker image tag envirodgi/processing:$CIRCLE_SHA1 envirodgi/processing:latest
+          command: docker image tag envirodgi/web-monitoring-diff:$CIRCLE_SHA1 envirodgi/web-monitoring-diff:latest
       - run:
           name: Publish to Docker Hub
           command: |
             docker login -u $DOCKER_USER -p $DOCKER_PASS
-            docker push envirodgi/processing:$CIRCLE_SHA1
-            docker push envirodgi/processing:latest
+            docker push envirodgi/web-monitoring-diff:$CIRCLE_SHA1
+            docker push envirodgi/web-monitoring-diff:latest
 
 workflows:
   version: 2
@@ -88,11 +90,16 @@ workflows:
     jobs:
       - build
       - build_docker
-      - publish_docker:
-          requires:
-            - build
-            - build_docker
-          filters:
-            branches:
-              only:
-                - release
+      # XXX: Temporarily disable while in the middle of extracting this package
+      # For this repo, we should probably publish based on tags:
+      # https://circleci.com/docs/2.0/workflows/#executing-workflows-for-a-git-tag
+      # Use $CIRCLE_TAG to identify the tag being used:
+      # https://circleci.com/docs/2.0/env-vars/#built-in-environment-variables
+      # - publish_docker:
+      #     requires:
+      #       - build
+      #       - build_docker
+      #     filters:
+      #       branches:
+      #         only:
+      #           - release

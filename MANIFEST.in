@@ -1,4 +1,3 @@
 include versioneer.py
-include web_monitoring/_version.py
-include web_monitoring/tests/cassettes/*
-include web_monitoring/example_data/*
+include web_monitoring_diff/_version.py
+include web_monitoring_diff/example_data/*

@@ -1,9 +1,9 @@
 import html5_parser
 from .content_type import raise_if_not_diffable_html
-from .differs import compute_dmp_diff
-from ..utils import get_color_palette
+from .basic_diffs import compute_dmp_diff
+from .utils import get_color_palette
 from difflib import SequenceMatcher
-from .html_diff_render import (get_title, _html_for_dmp_operation,
+from .html_render_diff import (get_title, _html_for_dmp_operation,
                                undiffable_content_tags)
 import re
 

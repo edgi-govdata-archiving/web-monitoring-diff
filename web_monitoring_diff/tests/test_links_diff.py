@@ -1,8 +1,8 @@
 from pathlib import Path
 from pkg_resources import resource_filename
 import pytest
-from web_monitoring.diff.diff_errors import UndiffableContentError
-from web_monitoring.diff.links_diff import links_diff, links_diff_html
+from web_monitoring_diff.exceptions import UndiffableContentError
+from web_monitoring_diff.html_links_diff import links_diff, links_diff_html
 
 
 def test_links_diff_only_includes_links():
@@ -51,7 +51,7 @@ def test_links_diff_should_show_the_alt_text_for_images():
 
 
 def test_links_diff_should_raise_for_non_html_content():
-    pdf_file = resource_filename('web_monitoring', 'example_data/empty.pdf')
+    pdf_file = resource_filename('web_monitoring_diff', 'example_data/empty.pdf')
     pdf_content = Path(pdf_file).read_text(errors='ignore')
 
     with pytest.raises(UndiffableContentError):
@@ -79,7 +79,7 @@ def test_links_diff_should_not_check_content_type_header_if_content_type_options
 
 
 def test_links_diff_should_not_raise_for_non_html_content_if_content_type_options_is_nosniff():
-    pdf_file = resource_filename('web_monitoring', 'example_data/empty.pdf')
+    pdf_file = resource_filename('web_monitoring_diff', 'example_data/empty.pdf')
     pdf_content = Path(pdf_file).read_text(errors='ignore')
 
     links_diff(
@@ -89,7 +89,7 @@ def test_links_diff_should_not_raise_for_non_html_content_if_content_type_option
 
 
 def test_links_diff_should_not_check_content_if_content_type_options_is_ignore():
-    pdf_file = resource_filename('web_monitoring', 'example_data/empty.pdf')
+    pdf_file = resource_filename('web_monitoring_diff', 'example_data/empty.pdf')
     pdf_content = Path(pdf_file).read_text(errors='ignore')
 
     links_diff(

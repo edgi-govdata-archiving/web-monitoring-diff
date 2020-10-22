@@ -1,8 +1,5 @@
 from bs4 import Comment
 from diff_match_patch import diff, diff_bytes
-from ..utils import get_color_palette
-from htmldiffer.diff import HTMLDiffer
-import htmltreediff
 import html5_parser
 import re
 import sys
@@ -107,67 +104,3 @@ def html_source_diff(a_text, b_text):
     res = compute_dmp_diff(a_text, b_text, timelimit=TIMELIMIT)
     count = len([[type_, string_] for type_, string_ in res if type_])
     return {'change_count': count, 'diff': res}
-
-
-def insert_style(html, css):
-    """
-    Insert a new <style> tag with CSS.
-
-    Parameters
-    ----------
-    html : string
-    css : string
-
-    Returns
-    -------
-    render : string
-    """
-    soup = html5_parser.parse(html,  treebuilder='soup', return_root=False)
-
-    # Ensure html includes a <head></head>.
-    if not soup.head:
-        head = soup.new_tag('head')
-        soup.html.insert(0, head)
-
-    style_tag = soup.new_tag("style", type="text/css")
-    style_tag.string = css
-    soup.head.append(style_tag)
-    render = soup.prettify(formatter=None)
-    return render
-
-
-def html_tree_diff(a_text, b_text):
-    color_palette = get_color_palette()
-    css = f'''
-diffins {{text-decoration : none; background-color:
-    {color_palette['differ_insertion']};}}
-diffdel {{text-decoration : none; background-color:
-    {color_palette['differ_deletion']};}}
-diffins * {{text-decoration : none; background-color:
-    {color_palette['differ_insertion']};}}
-diffdel * {{text-decoration : none; background-color:
-    {color_palette['differ_deletion']};}}
-    '''
-    d = htmltreediff.diff(a_text, b_text,
-                          ins_tag='diffins', del_tag='diffdel',
-                          pretty=True)
-    # TODO Count number of changes.
-    return {'diff': insert_style(d, css)}
-
-
-def html_differ(a_text, b_text):
-    color_palette = get_color_palette()
-    css = f'''
-.htmldiffer_insert {{text-decoration : none; background-color:
-    {color_palette['differ_insertion']};}}
-.htmldiffer_delete {{text-decoration : none; background-color:
-    {color_palette['differ_deletion']};}}
-.htmldiffer_insert * {{text-decoration : none; background-color:
-    {color_palette['differ_insertion']};}}
-.htmldiffer_delete * {{text-decoration : none; background-color:
-    {color_palette['differ_deletion']};}}
-    '''
-
-    d = HTMLDiffer(a_text, b_text).combined_diff
-    # TODO Count number of changes.
-    return {'diff': insert_style(d, css)}

@@ -1,7 +1,7 @@
+from argparse import ArgumentParser
 import asyncio
 import codecs
 import concurrent.futures
-from docopt import docopt
 import hashlib
 import inspect
 import functools
@@ -20,9 +20,9 @@ import tornado.httpclient
 import tornado.ioloop
 import tornado.web
 import traceback
-import web_monitoring
-from ..diff import differs, html_diff_render, links_diff
-from ..diff.diff_errors import UndiffableContentError, UndecodableContentError
+import web_monitoring_diff
+from .. import basic_diffs, html_render_diff, html_links_diff
+from ..exceptions import UndiffableContentError, UndecodableContentError
 from ..utils import shutdown_executor_in_loop, Signal
 
 logger = logging.getLogger(__name__)
@@ -38,29 +38,43 @@ sentry_sdk.integrations.logging.ignore_logger('tornado.access')
 DIFFER_PARALLELISM = int(os.environ.get('DIFFER_PARALLELISM', 10))
 
 # Map tokens in the REST API to functions in modules.
-# The modules do not have to be part of the web_monitoring package.
+# The modules do not have to be part of the web_monitoring_diff package.
 DIFF_ROUTES = {
-    "length": differs.compare_length,
-    "identical_bytes": differs.identical_bytes,
-    "side_by_side_text": differs.side_by_side_text,
-    "links": links_diff.links_diff_html,
-    "links_json": links_diff.links_diff_json,
+    "length": basic_diffs.compare_length,
+    "identical_bytes": basic_diffs.identical_bytes,
+    "side_by_side_text": basic_diffs.side_by_side_text,
+    "links": html_links_diff.links_diff_html,
+    "links_json": html_links_diff.links_diff_json,
     # applying diff-match-patch (dmp) to strings (no tokenization)
-    "html_text_dmp": differs.html_text_diff,
-    "html_source_dmp": differs.html_source_diff,
+    "html_text_dmp": basic_diffs.html_text_diff,
+    "html_source_dmp": basic_diffs.html_source_diff,
     # three different approaches to the same goal:
-    "html_token": html_diff_render.html_diff_render,
-    "html_tree": differs.html_tree_diff,
-    "html_perma_cc": differs.html_differ,
+    "html_token": html_render_diff.html_diff_render,
 
     # deprecated synonyms
-    "links_diff": links_diff.links_diff,
-    "html_text_diff": differs.html_text_diff,
-    "html_source_diff": differs.html_source_diff,
-    "html_visual_diff": html_diff_render.html_diff_render,
-    "html_tree_diff": differs.html_tree_diff,
-    "html_differ": differs.html_differ,
+    "links_diff": html_links_diff.links_diff,
+    "html_text_diff": basic_diffs.html_text_diff,
+    "html_source_diff": basic_diffs.html_source_diff,
+    "html_visual_diff": html_render_diff.html_diff_render,
 }
+
+# Optional, experimental diffs.
+try:
+    from ..experimental import htmltreediff
+    DIFF_ROUTES["html_tree"] = htmltreediff.diff
+    # Deprecated synonym
+    DIFF_ROUTES["html_tree_diff"] = htmltreediff.diff
+except ModuleNotFoundError:
+    ...
+
+try:
+    from ..experimental import htmldiffer
+    DIFF_ROUTES["html_perma_cc"] = htmldiffer.diff
+    # Deprecated synonym
+    DIFF_ROUTES["html_differ"] = htmldiffer.diff
+except ModuleNotFoundError:
+    ...
+
 
 # Matches a <meta> tag in HTML used to specify the character encoding:
 # <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
@@ -288,14 +302,14 @@ class DiffHandler(BaseHandler):
     def compute_etag(self):
         # We're not actually hashing content for this, since that is expensive.
         validation_bytes = str(
-            web_monitoring.__version__
+            web_monitoring_diff.__version__
             + self.request.path
             + str(self.decode_query_params())
         ).encode('utf-8')
 
         # Uses the "weak validation" directive since we don't guarantee that future
         # responses for the same diff will be byte-for-byte identical.
-        etag = f'W/"{web_monitoring.utils.hash_content(validation_bytes)}"'
+        etag = f'W/"{web_monitoring_diff.utils.hash_content(validation_bytes)}"'
         return etag
 
     async def get(self, differ):
@@ -337,7 +351,7 @@ class DiffHandler(BaseHandler):
 
         # Pass the bytes and any remaining args to the diffing function.
         res = await self.diff(func, content[0], content[1], query_params)
-        res['version'] = web_monitoring.__version__
+        res['version'] = web_monitoring_diff.__version__
         # Echo the client's request unless the differ func has specified
         # somethine else.
         res.setdefault('type', differ)
@@ -691,7 +705,7 @@ class IndexHandler(BaseHandler):
     async def get(self):
         # TODO Show swagger API or Markdown instead.
         info = {'diff_types': list(DIFF_ROUTES),
-                'version': web_monitoring.__version__}
+                'version': web_monitoring_diff.__version__}
         self.write(info)
 
 
@@ -724,19 +738,18 @@ def start_app(port):
 
 
 def cli():
-    doc = """Start a diffing server.
+    parser = ArgumentParser(description='Start a diffing server.')
+    parser.add_argument('--version', action='store_true',
+                        help='Show version information')
+    parser.add_argument('--port', type=int, default=8888,
+                        help='Port to listen on')
+    arguments = parser.parse_args()
 
-Usage:
-wm-diffing-server [--port <port>]
+    if arguments.version:
+        print(web_monitoring_diff.__version__)
+        return
 
-Options:
--h --help     Show this screen.
---version     Show version.
---port        Port. [default: 8888]
-"""
-    arguments = docopt(doc, version='0.0.1')
-    port = int(arguments['<port>'] or 8888)
-    start_app(port)
+    start_app(arguments.port)
 
 
 if __name__ == '__main__':
