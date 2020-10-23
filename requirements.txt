@@ -4,7 +4,7 @@ diff_match_patch_python ~=1.0.2
 git+https://github.com/anastasia/htmldiffer@develop
 git+https://github.com/danielballan/htmltreediff@customize
 html5-parser ~=0.4.9 --no-binary lxml
-lxml ~=4.5.2
+lxml ~=4.6.1
 
 # Server
 cchardet ~=2.1.6
