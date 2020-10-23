@@ -9,5 +9,5 @@ lxml ~=4.5.2
 # Server
 cchardet ~=2.1.6
 pycurl ~=7.43
-sentry-sdk ~=0.18.0
+sentry-sdk ~=0.19.1
 tornado ~=6.0.4
