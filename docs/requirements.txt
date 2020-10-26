@@ -1,0 +1,15 @@
+-r ../requirements.txt
+-r ../requirements-experimental.txt
+-r ../requirements-dev.txt
+
+# ../requirements-server.txt includes some binary dependencies readthedocs
+# doesn't support, so just include the minimum here.
+# See `autodoc_mock_imports` in `docs/source/conf.py` for where other
+# dependencies we aren't actually installing get mocked.
+tornado >=6.0.0,<7
+
+# We need to tell readthedocs to install this package itself as well.
+# Confusingly, we have to specify this directory relative to the repo root
+# rather than relative to the directory where this file resides. That is
+# inconsistent with the lines above...the mysteries of pip!
+./

@@ -18,9 +18,12 @@ def links_diff(a_text, b_text, a_headers=None, b_headers=None,
 
     NOTE: this diff currently suffers from the fact that our diff server does
     not know the original URL of the content, so it can identify:
-        <a href="#anchor-in-this-page">Text</a>
+
+    >>> <a href="#anchor-in-this-page">Text</a>
+
     as an internal link, but not:
-        <a href="http://this.domain.com/this/page#anchor-in-this-page">Text</a>
+
+    >>> <a href="http://this.domain.com/this/page#anchor-in-this-page">Text</a>
     """
     raise_if_not_diffable_html(
         a_text,

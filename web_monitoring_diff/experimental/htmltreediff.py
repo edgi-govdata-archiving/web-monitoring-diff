@@ -31,11 +31,11 @@ def diff(a_text, b_text):
 
     ``htmltreediff`` is no longer under active development; we maintain a fork
     with minimal fixes and Python 3 support. It is not available on PyPI, so
-    you must install via git:
+    you must install via git::
 
         $ pip install git+https://github.com/danielballan/htmltreediff@customize
 
-    You can also install all experimental differs with:
+    You can also install all experimental differs with::
 
         $ pip install -r requirements-experimental.txt
 

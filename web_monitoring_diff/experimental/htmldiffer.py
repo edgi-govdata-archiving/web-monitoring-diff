@@ -18,11 +18,11 @@ def diff(a_text, b_text):
 
     While ``htmldiffer`` is available on PyPI, the public release hasn't been
     updated in quite some time. Its authors recommend installing via git
-    instead of PyPI:
+    instead of PyPI::
 
         $ pip install git+https://github.com/anastasia/htmldiffer@develop
 
-    You can also install all experimental differs with:
+    You can also install all experimental differs with::
 
         $ pip install -r requirements-experimental.txt
 

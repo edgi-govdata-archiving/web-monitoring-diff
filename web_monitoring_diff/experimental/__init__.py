@@ -2,13 +2,14 @@
 Experimental External Diffs
 ---------------------------
 
-The functions in this module wrap diff algorithms available from other
-repositories that we consider relatively experimental or unproven. They may be
-new and still have lots of edge cases, may not be publicly available via PyPI
-or another package server, or may have any number of other issues.
+The functions in ``web_monitoring_diff.experimental`` wrap diff algorithms
+available from other repositories that we consider relatively experimental or
+unproven. They may be new and still have lots of edge cases, may not be
+publicly available via PyPI or another package server, or may have any number
+of other issues.
 
 They are not installed by default, so calling them may raise an exception. To
-install them, use pip:
+install them, use pip::
 
     $ pip install -r requirements-experimental.txt
 

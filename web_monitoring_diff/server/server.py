@@ -661,6 +661,7 @@ def caller(func, a, b, **query_params):
     * a_url, b_url: URL of HTTP request
     * a_body, b_body: Raw HTTP reponse body (bytes)
     * a_text, b_text: Decoded text of HTTP response body (str)
+    * a_headers, b_headers: Dict of HTTP headers
 
     Any other argument names in the signature will take their values from the
     REST query parameters.
@@ -718,6 +719,9 @@ class HealthCheckHandler(BaseHandler):
 
 
 def make_app():
+    """
+    Create and return a Tornado application object that serves diffs.
+    """
     class BoundDiffHandler(DiffHandler):
         differs = DIFF_ROUTES
 
@@ -730,6 +734,18 @@ def make_app():
 
 
 def start_app(port):
+    """
+    Create and start the diff server on a given port.
+
+    This is a blocking call -- it starts an event loop for the server and does
+    not return until the server has shut down. For more control, use
+    :func:`create_app`.
+
+    Parameters
+    ----------
+    port : int
+        The port to listen on.
+    """
     app = make_app()
     print(f'Starting server on port {port}')
     app.listen(port)
@@ -738,6 +754,10 @@ def start_app(port):
 
 
 def cli():
+    """
+    Start the diff server from the CLI. This will parse the current process's
+    arguments, start an event loop, and begin serving.
+    """
     parser = ArgumentParser(description='Start a diffing server.')
     parser.add_argument('--version', action='store_true',
                         help='Show version information')

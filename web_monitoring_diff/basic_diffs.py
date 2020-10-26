@@ -74,8 +74,8 @@ def html_text_diff(a_text, b_text):
     """
     Diff the visible textual content of an HTML document.
 
-    Example
-    ------
+    Examples
+    --------
     >>> html_text_diff('<p>Deleted</p><p>Unchanged</p>',
     ...                '<p>Added</p><p>Unchanged</p>')
     [[-1, 'Delet'], [1, 'Add'], [0, 'ed Unchanged']]
@@ -94,8 +94,8 @@ def html_source_diff(a_text, b_text):
     """
     Diff the full source code of an HTML document.
 
-    Example
-    ------
+    Examples
+    --------
     >>> html_source_diff('<p>Deleted</p><p>Unchanged</p>',
     ...                  '<p>Added</p><p>Unchanged</p>')
     [[0, '<p>'], [-1, 'Delet'], [1, 'Add'], [0, 'ed</p><p>Unchanged</p>']]

@@ -307,7 +307,7 @@ def html_diff_render(a_text, b_text, a_headers=None, b_headers=None,
     3. A `<meta name="wm-diff-title" content="[diff]">` contains a renderable
        HTML diff of the page’s `<title>`. For example:
 
-        `The <del>old</del><ins>new</ins> title`
+       `The <del>old</del><ins>new</ins> title`
 
     NOTE: you may want to be careful with rendering this response as-is;
     inline `<script>` and `<style>` elements may be included twice if they had
@@ -325,42 +325,51 @@ def html_diff_render(a_text, b_text, a_headers=None, b_headers=None,
         Any HTTP headers associated with the `b` document
     include : string
         Which comparisons to include in output. Options are:
+
         - `combined` returns an HTML document with insertions and deletions
           together.
+
         - `insertions` returns an HTML document with only the unchanged text
           and text inserted in the `b` document.
+
         - `deletions` returns an HTML document with only the unchanged text and
           text that was deleted from the `a` document.
+
         - `all` returns all of the above documents. You might use this for
           efficiency -- the most expensive part of the diff is only performed
           once and reused for all three return types.
+
     content_type_options : string
         Change how content type detection is handled. It doesn’t make a lot of
         sense to apply an HTML-focused diffing algorithm to, say, a JPEG image,
         so this function uses a combination of headers and content sniffing to
         determine whether a document is not HTML (it’s lenient; if it's not
         pretty clear that it's not HTML, it’ll try and diff). Options are:
+
         - `normal` uses the `Content-Type` header and then falls back to
           sniffing to determine content type.
         - `nocheck` ignores the `Content-Type` header but still sniffs.
         - `nosniff` uses the `Content-Type` header but does not sniff.
         - `ignore` doesn’t do any checking at all.
+
     url_rules : string
         Use specialized rules for comparing URLs in links, images, etc.
         Possible values are:
+
         - `jsessionid` ignores Java Servlet session IDs in URLs.
         - `wayback` considers two Wayback Machine links as equivalent if they have
           the same original URL, regardless of each of their timestamps.
         - `wayback_uk` like `wayback`, but for the UK Web Archive (webarchive.org.uk)
+
         You can also combine multiple comparison rules with a comma,
         e.g. `jsessionid,wayback`. Use None or an empty string for exact
         comparisons. (Default: `jsessionid`)
 
-    Example
-    -------
-    text1 = '<!DOCTYPE html><html><head></head><body><p>Paragraph</p></body></html>'
-    text2 = '<!DOCTYPE html><html><head></head><body><h1>Header</h1></body></html>'
-    test_diff_render = html_diff_render(text1,text2)
+    Examples
+    --------
+    >>> text1 = '<!DOCTYPE html><html><head></head><body><p>Paragraph</p></body></html>'
+    ... text2 = '<!DOCTYPE html><html><head></head><body><h1>Header</h1></body></html>'
+    ... test_diff_render = html_diff_render(text1,text2)
     """
     raise_if_not_diffable_html(
         a_text,
