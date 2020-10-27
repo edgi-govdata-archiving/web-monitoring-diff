@@ -1,2 +1,8 @@
 .env
-.git/
+
+# DO NOT IGNORE .git!
+# We use Versioneer set package version information from git tags, so .git must
+# be available for it to work. We handle cleaning up the container for release
+# by having a multi-stage build, where the final container image only includes
+# the built package.
+# .git/

@@ -1,4 +1,4 @@
-version: 2
+version: 2.1
 jobs:
   build:
     working_directory: ~/web-monitoring-diff
@@ -55,12 +55,12 @@ jobs:
     steps:
       - checkout
       - run: |
-          docker build -t envirodgi/web-monitoring-diff:$CIRCLE_SHA1 .
+          docker build -t envirodgi/web-monitoring-diff:${CIRCLE_SHA1} .
       - run:
           name: Save Image
           command: |
             mkdir /tmp/workspace
-            docker save --output /tmp/workspace/docker-image envirodgi/web-monitoring-diff:$CIRCLE_SHA1
+            docker save --output /tmp/workspace/docker-image envirodgi/web-monitoring-diff:${CIRCLE_SHA1}
       - persist_to_workspace:
           root: /tmp/workspace
           paths:
@@ -76,30 +76,50 @@ jobs:
           command: docker load --input /tmp/workspace/docker-image
       - run:
           name: Re-tag Image
-          command: docker image tag envirodgi/web-monitoring-diff:$CIRCLE_SHA1 envirodgi/web-monitoring-diff:latest
+          command: |
+            if [ -n "${CIRCLE_TAG}" ]; then
+                docker image tag envirodgi/web-monitoring-diff:${CIRCLE_SHA1} envirodgi/web-monitoring-diff:${CIRCLE_TAG:1}
+                docker image tag envirodgi/web-monitoring-diff:${CIRCLE_SHA1} envirodgi/web-monitoring-diff:latest
+            fi
       - run:
           name: Publish to Docker Hub
           command: |
             docker login -u $DOCKER_USER -p $DOCKER_PASS
-            docker push envirodgi/web-monitoring-diff:$CIRCLE_SHA1
-            docker push envirodgi/web-monitoring-diff:latest
+            docker push envirodgi/web-monitoring-diff:${CIRCLE_SHA1}
+            if [ -n "${CIRCLE_TAG}" ]; then
+                docker push envirodgi/web-monitoring-diff:${CIRCLE_TAG:1}
+                docker push envirodgi/web-monitoring-diff:latest
+            fi
 
 workflows:
-  version: 2
   build:
     jobs:
-      - build
-      - build_docker
-      # XXX: Temporarily disable while in the middle of extracting this package
-      # For this repo, we should probably publish based on tags:
+      # NOTE: because publishing runs on tags, we have to make sure all jobs
+      # it depends on also run on tags (by default, jobs do not run on tags,
+      # only branches).
+      #
+      # Also: {filters: {tags: {only: ...}}} may look deceiving, like it's only
+      # running for the tags. But what's actually happening here is that
+      # branches aren't being filtered (only tags are), so it's running for
+      # *all* branches and also for tags that start with "v".
+      #
+      # See more in:
       # https://circleci.com/docs/2.0/workflows/#executing-workflows-for-a-git-tag
-      # Use $CIRCLE_TAG to identify the tag being used:
-      # https://circleci.com/docs/2.0/env-vars/#built-in-environment-variables
-      # - publish_docker:
-      #     requires:
-      #       - build
-      #       - build_docker
-      #     filters:
-      #       branches:
-      #         only:
-      #           - release
+      - build:
+          filters:
+            tags:
+              only: /^v.*/
+      - build_docker:
+          filters:
+            tags:
+              only: /^v.*/
+      # Publishing only happens for tags starting with "v", and no branches.
+      - publish_docker:
+          requires:
+            - build
+            - build_docker
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^v.*/
