@@ -75,21 +75,44 @@ jobs:
           name: Load Built Docker Image
           command: docker load --input /tmp/workspace/docker-image
       - run:
-          name: Re-tag Image
+          name: Docker Login
+          command: docker login -u $DOCKER_USER -p $DOCKER_PASS
+      # TODO: Drop these SHA-tagged builds in favor of just release numbers.
+      # We maintain them for now for compatibility w/ a previous release style.
+      - run:
+          name: Publish Commit-SHA-Tagged Image
+          command: docker push envirodgi/web-monitoring-diff:${CIRCLE_SHA1}
+      - run:
+          name: Publish Version-Tagged Image
           command: |
-            if [ -n "${CIRCLE_TAG}" ]; then
-                docker image tag envirodgi/web-monitoring-diff:${CIRCLE_SHA1} envirodgi/web-monitoring-diff:${CIRCLE_TAG:1}
-                docker image tag envirodgi/web-monitoring-diff:${CIRCLE_SHA1} envirodgi/web-monitoring-diff:latest
+            # Sanity-check that we are dealing with an actual release tag.
+            if [ -z "${CIRCLE_TAG}" ]; then
+              echo 'There is no git tag to use!'
+            else
+              # Re-tag the Docker image with the current version number, which
+              # is based on the current git tag ($CIRCLE_TAG).
+              docker image tag \
+                envirodgi/web-monitoring-diff:${CIRCLE_SHA1} \
+                envirodgi/web-monitoring-diff:${CIRCLE_TAG:1}
+              docker push envirodgi/web-monitoring-diff:${CIRCLE_TAG:1}
             fi
       - run:
-          name: Publish to Docker Hub
+          name: Publish :latest Tag If Final Release
           command: |
-            docker login -u $DOCKER_USER -p $DOCKER_PASS
-            docker push envirodgi/web-monitoring-diff:${CIRCLE_SHA1}
-            if [ -n "${CIRCLE_TAG}" ]; then
-                docker push envirodgi/web-monitoring-diff:${CIRCLE_TAG:1}
-                docker push envirodgi/web-monitoring-diff:latest
+            # Skip tags with additional info after "v0.0.0", e.g. "v1.0.0a1"
+            FINAL_VERSION="$(echo "${CIRCLE_TAG}" | grep -E '^v\d+(\.\d+)+$')"
+            if [ -z "${FINAL_VERSION}" ]; then
+              echo 'The current tag does not represent a final release!'
+              echo 'Not publishing a ":latest" tag.'
+            else
+              docker image tag \
+                envirodgi/web-monitoring-diff:${CIRCLE_SHA1} \
+                envirodgi/web-monitoring-diff:latest
+              docker push envirodgi/web-monitoring-diff:latest
             fi
+
+  # TODO: Publish to PyPI from CircleCI for version tags, similar to Docker.
+  # publish_pypi:
 
 workflows:
   build:
