@@ -48,30 +48,19 @@ DIFF_ROUTES = {
     # applying diff-match-patch (dmp) to strings (no tokenization)
     "html_text_dmp": basic_diffs.html_text_diff,
     "html_source_dmp": basic_diffs.html_source_diff,
-    # three different approaches to the same goal:
     "html_token": html_render_diff.html_diff_render,
-
-    # deprecated synonyms
-    "links_diff": html_links_diff.links_diff,
-    "html_text_diff": basic_diffs.html_text_diff,
-    "html_source_diff": basic_diffs.html_source_diff,
-    "html_visual_diff": html_render_diff.html_diff_render,
 }
 
 # Optional, experimental diffs.
 try:
     from ..experimental import htmltreediff
     DIFF_ROUTES["html_tree"] = htmltreediff.diff
-    # Deprecated synonym
-    DIFF_ROUTES["html_tree_diff"] = htmltreediff.diff
 except ModuleNotFoundError:
     ...
 
 try:
     from ..experimental import htmldiffer
     DIFF_ROUTES["html_perma_cc"] = htmldiffer.diff
-    # Deprecated synonym
-    DIFF_ROUTES["html_differ"] = htmldiffer.diff
 except ModuleNotFoundError:
     ...
 
