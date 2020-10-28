@@ -72,7 +72,7 @@ If you have ``jq`` installed, you might want to use it to format the result in a
 
   $ curl "http://localhost:8888/links_json?a=${VERSION_2018}&b=${VERSION_2020}" | jq
 
-You can pass additional arguments to the various diffs in the querysting. See the full documentation of the server and off the various diffs for more details.
+You can pass additional arguments to the various diffs in the query string. See the full documentation of the server and of the various diffs for more details.
 
 
 .. _internet archive: https://web.archive.org/
