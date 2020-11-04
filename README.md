@@ -45,7 +45,7 @@ This package was originally built as a component of EDGI’s [Web Monitoring Pro
 
     The `--no-binary` flag ensures that pip downloads and builds a fresh copy of `lxml` (one of web-monitoring-diff’s dependencies) rather than using a pre-built version. It’s slower to install, but is required for all the dependencies to work correctly together. **If you publish a package that depends on web-monitoring-diff, your package will need to be installed with this flag, too.**
 
-    **On MacOS,** you may need additional configuration to get `pycurl` use the Homebrew openssl. Try the following:
+    **On MacOS,** you may need additional configuration to get `pycurl` to use the Homebrew `openssl`. Try the following:
 
     ```sh
     PYCURL_SSL_LIBRARY=openssl \
@@ -128,7 +128,7 @@ If you have `jq` installed, you might want to use it to format the result in a n
 $ curl "http://localhost:8888/links_json?a=${VERSION_2018}&b=${VERSION_2020}" | jq
 ```
 
-You can pass additional arguments to the various diffs in the querysting. See the full documentation of the server and off the various diffs for more details.
+You can pass additional arguments to the various diffs in the query string. See the full documentation of the server and of the various diffs for more details.
 
 
 ## Docker
