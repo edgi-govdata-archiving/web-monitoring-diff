@@ -37,7 +37,7 @@ Installation
 
   The ``--no-binary`` flag ensures that pip downloads and builds a fresh copy of ``lxml`` (one of web-monitoring-diff’s dependencies) rather than using a pre-built version. It’s slower to install, but is required for all the dependencies to work correctly together. **If you publish a package that depends on web-monitoring-diff, your package will need to be installed with this flag, too.**
 
-  **On MacOS,** you may need additional configuration to get ``pycurl`` to use the Homebrew `openssl`. Try the following:
+  **On MacOS,** you may need additional configuration to get ``pycurl`` to use the Homebrew ``openssl``. Try the following:
 
   .. code-block:: bash
 
