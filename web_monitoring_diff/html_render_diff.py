@@ -268,6 +268,9 @@ class UrlRules:
 
     @classmethod
     def compare_array(cls, url_list_a, url_list_b, comparator):
+        if len(url_list_a) == 0 == len(url_list_b):
+            return True
+
         for url_a in url_list_a:
             for url_b in url_list_b:
                 if comparator:
@@ -866,14 +869,20 @@ def flatten_el(el, include_hrefs, skip_tag=False):
     if not skip_tag:
         if el.tag == 'img':
             src_array = []
-            el_src = el.get('src')
+            # The `data-src` attribute is very commonly used for JS to lazy-
+            # load images, so allow it in lieu of `src`.
+            el_src = el.get('src') or el.get('data-src')
             if el_src is not None:
                 src_array.append(el_src)
-            srcset = el.get('srcset')
+
+            # Same as above with `data-srcset` here.
+            srcset = el.get('srcset') or el.get('data-srcset')
             if srcset is not None:
                 for src in srcset.split(','):
                     src_array.append(src.split(' ', maxsplit=1)[0])
+
             yield (TokenType.img, src_array, start_tag(el))
+
         elif el.tag in undiffable_content_tags:
             element_source = etree.tostring(el, encoding=str, method='html')
             yield (TokenType.undiffable, element_source)
