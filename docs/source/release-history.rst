@@ -9,6 +9,8 @@ In Development
 
 - Fixes :func:`web_monitoring_diff.html_diff_render` to make sure the spacing of text and tags in the HTML source code of the diff matches the original. This resolves display issues on pages where CSS is used to treat spacing as significant. (`#36 <https://github.com/edgi-govdata-archiving/web-monitoring-diff/issues/36>`_)
 
+- Improve handling of lazy-loaded images in :func:`web_monitoring_diff.html_diff_render`. When images are lazy-loaded via JS, they usually use the ``data-src`` or ``data-srcset`` attributes, and we now check those, too. Additionally, if two images have no detectable URLs, we now treat them as the same, rather than different. (`#37 <https://github.com/edgi-govdata-archiving/web-monitoring-diff/issues/37>`_)
+
 
 Version 0.1.0
 -------------
