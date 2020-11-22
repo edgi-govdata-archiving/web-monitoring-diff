@@ -498,7 +498,16 @@ class DiffHandler(BaseHandler):
                 return await loop.run_in_executor(
                     executor, functools.partial(caller, func, a, b, **params))
             except concurrent.futures.process.BrokenProcessPool:
-                executor = self.get_diff_executor(reset=True)
+                if attempt + 1 < tries:
+                    # There could be many diffs happening in parallel, so
+                    # before trying to reset the process pool, make sure other
+                    # parallel diffs haven't already done it. If it's already
+                    # been reset, then we can just go and use the new one.
+                    old_executor, executor = executor, self.get_diff_executor()
+                    if executor == old_executor:
+                        executor = self.get_diff_executor(reset=True)
+                else:
+                    raise
 
     # NOTE: this doesn't do anything async, but if we change it to do so, we
     # need to add a lock (either asyncio.Lock or tornado.locks.Lock).
