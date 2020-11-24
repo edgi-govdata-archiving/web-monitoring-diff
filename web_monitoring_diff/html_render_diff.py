@@ -435,18 +435,18 @@ def html_diff_render(a_text, b_text, a_headers=None, b_headers=None,
         soup.head.append(change_styles)
 
         soup.body.replace_with(diff_body)
-        # The method we use above to append HTML strings (the diffs) to the soup
-        # results in a non-navigable soup. So we serialize and re-parse :(
-        # (Note we use no formatter for this because proper encoding escapes
-        # the tags our differ generated.)
-        soup = html5_parser.parse(soup.prettify(formatter=None),
-                                  treebuilder='soup', return_root=False)
         runtime_scripts = soup.new_tag('script', id='wm-diff-script')
         runtime_scripts.string = UPDATE_CONTRAST_SCRIPT
         soup.body.append(runtime_scripts)
         if diff_type == 'combined':
             _deactivate_deleted_active_elements(soup)
-        results[diff_type] = soup.prettify(formatter='minimal')
+        # Convert to a string instead of prettifying. `prettify()` will always
+        # add extra space around non-inline elements, even if `formatter` is
+        # "minimal" or None. This is a problem because the page may use pre-
+        # formatted text or use CSS to make block elements display as inline,
+        # etc. There are lots of situations where the spacing really matters,
+        # so we want to make sure not to alter it.
+        results[diff_type] = str(soup)
 
     return results
 
@@ -506,7 +506,18 @@ def diff_elements(old, new, comparator, include='all'):
     def fill_element(element, diff):
         result_element = copy.copy(element)
         result_element.clear()
-        result_element.append(diff)
+        # At this point, `diff` is an HTML *string*, so we need to parse it
+        # before we can safely insert it into a soup. (We used to insert it as
+        # a string and do some funny tricks, but this led to other issues.)
+        # TODO: _htmldiff() should return a tree of soup tags rather than a
+        # list of strings, so we don't need to re-parse here.
+        parsed_diff = html5_parser.parse(
+            f'<!doctype html>\n<html><body>{diff}</body></html>',
+            treebuilder='soup', return_root=False)
+        # `.contents/.children` are *live*, so cache their output into a new
+        # list before moving them to the new container -- otherwise we'll miss
+        # some because the contents change in the middle of moving.
+        result_element.extend(list(parsed_diff.body.children))
         return result_element
 
     results = {}
