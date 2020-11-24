@@ -301,6 +301,52 @@ def test_html_diff_works_with_srcset():
     assert results['change_count'] == 0
 
 
+def test_html_diff_works_with_images_without_src_srcset():
+    results = html_diff_render(
+        '<img alt="OSIRIS Mars true color.jpg">',
+        '<img alt="OSIRIS Mars true color.jpg">',
+        include='all')
+
+    assert results['change_count'] == 0
+
+
+def test_html_diff_works_with_data_src():
+    results = html_diff_render(
+        '''
+        <img
+            alt="OSIRIS Mars true color.jpg"
+            data-src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/02/OSIRIS_Mars_true_color.jpg/413px-OSIRIS_Mars_true_color.jpg">
+        ''',
+        '''
+        <img
+            alt="OSIRIS Mars true color.jpg"
+            data-src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/02/OSIRIS_Mars_true_color.jpg/275px-OSIRIS_Mars_true_color.jpg">
+        ''',
+        include='all')
+
+    assert results['change_count'] == 2
+
+
+def test_html_diff_works_with_data_srcset():
+    results = html_diff_render(
+        '''
+        <img
+            alt="OSIRIS Mars true color.jpg"
+            data-src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/02/OSIRIS_Mars_true_color.jpg/413px-OSIRIS_Mars_true_color.jpg">
+        ''',
+        '''
+        <img
+            alt="OSIRIS Mars true color.jpg"
+            data-src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/02/OSIRIS_Mars_true_color.jpg/275px-OSIRIS_Mars_true_color.jpg"
+            data-srcset="https://upload.wikimedia.org/wikipedia/commons/thumb/0/02/OSIRIS_Mars_true_color.jpg/413px-OSIRIS_Mars_true_color.jpg 1.5x, https://upload.wikimedia.org/wikipedia/commons/thumb/0/02/OSIRIS_Mars_true_color.jpg/550px-OSIRIS_Mars_true_color.jpg 2x"
+            width="275"
+            height="275">
+        ''',
+        include='all')
+
+    assert results['change_count'] == 0
+
+
 def test_html_diff_works_with_jsessionid():
     results = html_diff_render(
         '<a href="https://www.ncdc.noaa.gov/homr/api;jsessionid=A2DECB66D2648BFED11FC721FC3043A1"></a>',
