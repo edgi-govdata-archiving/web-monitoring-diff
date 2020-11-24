@@ -15,6 +15,21 @@ from web_monitoring_diff.exceptions import UndiffableContentError
 from web_monitoring_diff.html_render_diff import html_diff_render
 
 
+# Helpers
+HEAD_PATTERN = re.compile(r'<head>(.*?)</head>', re.DOTALL)
+BODY_PATTERN = re.compile(r'<body.*?>(.*)</body>', re.DOTALL)
+EXTRAS_PATTERN = re.compile(r'<(style|script) id="wm-diff-.*?</\1>', re.DOTALL)
+
+def get_head(html):
+    return HEAD_PATTERN.search(html).group(1)
+
+def get_body(html):
+    return BODY_PATTERN.search(html).group(1)
+
+def remove_extras(html):
+    return EXTRAS_PATTERN.sub('', html)
+
+
 # TODO: extend these to other html differs via parameterization, a la
 # `test_html_diff.py`. Most of these are written generically enough they could
 # feasibly work with any visual HTML diff routine.
@@ -24,6 +39,30 @@ def test_html_diff_render_works_on_pages_with_no_head():
                               '<html><body>Goodbye</body></html>',
                               include='deletions')
     assert result
+
+
+def test_html_diff_render_maintains_existing_content_spacing():
+    """
+    The diff should not add spaces to make the HTML source look nicely
+    formatted, since this can change how the page is laid out and styled -- any
+    space in the doc may be significant if an element has CSS like:
+        white-space: pre;
+    """
+    result = html_diff_render(
+        '<html><body>Hello <div>Alice</div></body></html>',
+        '<html><body>Hello <div>Sally</div></body></html>',
+        include='all')
+
+    # Just look at the body (the head can have nice space) and remove extra
+    # styling/scripting, which can have space inside it because it doesn't
+    # contribute to the content.
+    deletions = remove_extras(get_body(result['deletions']))
+    insertions = remove_extras(get_body(result['insertions']))
+    combined = remove_extras(get_body(result['combined']))
+
+    assert deletions == 'Hello <div><del class="wm-diff">Alice</del></div>'
+    assert insertions == 'Hello <div><ins class="wm-diff">Sally</ins></div>'
+    assert combined == 'Hello <div><del class="wm-diff">Alice</del><ins class="wm-diff">Sally</ins></div>'
 
 
 def test_html_diff_render_does_not_encode_embedded_content():
