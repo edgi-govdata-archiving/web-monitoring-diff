@@ -100,7 +100,13 @@ jobs:
           name: Publish :latest Tag If Final Release
           command: |
             # Skip tags with additional info after "v0.0.0", e.g. "v1.0.0a1"
-            FINAL_VERSION="$(echo "${CIRCLE_TAG}" | grep -E '^v\d+(\.\d+)+$')"
+            # NOTE: the version of grep on Circle needs -P (perl-style regex)
+            # instead of -E (extended regex) to support `\d`.
+            FINAL_VERSION="$(
+              echo "${CIRCLE_TAG}" |
+              grep -P '^v\d+(\.\d+)+$' ||
+              true
+            )"
             if [ -z "${FINAL_VERSION}" ]; then
               echo 'The current tag does not represent a final release!'
               echo 'Not publishing a ":latest" tag.'
