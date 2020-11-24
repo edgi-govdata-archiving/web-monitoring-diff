@@ -1472,7 +1472,32 @@ def assemble_diff(html1_tokens, html2_tokens, commands, include='combined'):
                 merge_changes(del_tokens, result, 'del')
 
     reconcile_change_groups(insert_buffer, delete_buffer, result)
-    return result
+
+    # Clean out empty diff elements. Issues with the algorithms above sometimes
+    # leave us with empty deletions/insertions in the HTML, like:
+    #
+    #     <del class="wm-diff"></del>
+    #
+    # TODO: Clean up merge_changes(), merge_change_groups(), and
+    # reconcile_change_groups() to ensure we don't have this situation in the
+    # first place.
+    clean_buffer = None
+    clean_result = []
+    del_token = '<del class="wm-diff">'
+    ins_token = '<ins class="wm-diff">'
+    for item in result:
+        if item == del_token or item == ins_token:
+            clean_buffer = item
+        elif (item == '</del>' and clean_buffer == del_token or
+              item == '</ins>' and clean_buffer == ins_token):
+            clean_buffer = None
+        else:
+            if clean_buffer:
+                clean_result.append(clean_buffer)
+                clean_buffer = None
+            clean_result.append(item)
+
+    return clean_result
 
 
 # TODO: merge and reconcile this with `merge_changes()`, which is 90% the same
