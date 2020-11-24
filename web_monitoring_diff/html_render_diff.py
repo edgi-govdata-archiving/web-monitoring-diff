@@ -425,16 +425,7 @@ def html_diff_render(a_text, b_text, a_headers=None, b_headers=None,
             "style",
             type="text/css",
             id='wm-diff-style')
-
-        color_palette = get_color_palette()
-        change_styles.string = f'''
-            ins.wm-diff, ins.wm-diff > * {{background-color:
-                {color_palette['differ_insertion']} !important;
-                all: unset;}}
-            del.wm-diff, del.wm-diff > * {{background-color:
-                {color_palette['differ_deletion']} !important;
-                all: unset;}}
-            script {{display: none !important;}}'''
+        change_styles.string = get_diff_styles()
         soup.head.append(change_styles)
 
         soup.body.replace_with(diff_body)
@@ -1862,6 +1853,32 @@ class InsensitiveSequenceMatcher(difflib.SequenceMatcher):
         return [item for item in actual
                 if item[2] > threshold
                 or not item[2]]
+
+
+def get_diff_styles():
+    colors = get_color_palette()
+    # Unset local `<ins>`/`<del>` styling on the page that might clash with
+    # our diff elements. Note that `all: unset` has browser bugs that are
+    # problematic (e.g. https://bugs.webkit.org/show_bug.cgi?id=158782) so
+    # we need to use a list of specific properties we're concerned about
+    # instead. (It can also cause the contents of `<style>` and `<script>`
+    # tags to be rendered on the page, which is also bad.)
+    return f'''
+        ins.wm-diff, del.wm-diff {{
+            display: unset;
+            visibility: unset;
+            opacity: 1;
+            clip: auto;
+            text-decoration: unset;
+            color: inherit;
+        }}
+        ins.wm-diff, ins.wm-diff > * {{
+            background-color: {colors['differ_insertion']} !important;
+        }}
+        del.wm-diff, del.wm-diff > * {{
+            background-color: {colors['differ_deletion']} !important;
+        }}
+        script {{display: none !important;}}'''
 
 
 UPDATE_CONTRAST_SCRIPT = """
