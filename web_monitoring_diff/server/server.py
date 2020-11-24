@@ -202,6 +202,10 @@ access_control_allow_origin_header = \
     os.environ.get('ACCESS_CONTROL_ALLOW_ORIGIN_HEADER')
 
 
+def initialize_diff_worker():
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
+
+
 class DiffServer(tornado.web.Application):
     terminating = False
 
@@ -486,6 +490,10 @@ class DiffHandler(BaseHandler):
 
         return response
 
+    # TODO: we should split out all the management of the executor and diffing
+    # (so this, get_diff_executor, caller, etc.) into a separate object owned
+    # by the server so we don't need weird bits checking the server's
+    # `terminating` state and so that all the parts are grouped together.
     async def diff(self, func, a, b, params, tries=2):
         """
         Actually do a diff between two pieces of content, optionally retrying
@@ -512,6 +520,9 @@ class DiffHandler(BaseHandler):
     # NOTE: this doesn't do anything async, but if we change it to do so, we
     # need to add a lock (either asyncio.Lock or tornado.locks.Lock).
     def get_diff_executor(self, reset=False):
+        if self.application.terminating:
+            raise RuntimeError('Diff executor is being shut down.')
+
         executor = self.settings.get('diff_executor')
         if reset or not executor:
             if executor:
@@ -522,7 +533,8 @@ class DiffHandler(BaseHandler):
                 except Exception:
                     pass
             executor = concurrent.futures.ProcessPoolExecutor(
-                DIFFER_PARALLELISM)
+                DIFFER_PARALLELISM,
+                initializer=initialize_diff_worker)
             self.settings['diff_executor'] = executor
 
         return executor
