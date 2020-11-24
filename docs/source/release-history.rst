@@ -7,6 +7,8 @@ In Development
 
 - Fixes an issue where the diffing server could reset the process pool that manages the actual diffs multiple times unnecessarily, leading to wasted memory and CPU. If you are tracking logs and errors, this will also make error messages about the diffing server clearer — you’ll see “BrokenProcessPool” instead of “'NoneType' object does not support item assignment.” (`#38 <https://github.com/edgi-govdata-archiving/web-monitoring-diff/issues/38>`_)
 
+- Fixes :func:`web_monitoring_diff.html_diff_render` to make sure the spacing of text and tags in the HTML source code of the diff matches the original. This resolves display issues on pages where CSS is used to treat spacing as significant. (`#36 <https://github.com/edgi-govdata-archiving/web-monitoring-diff/issues/36>`_)
+
 
 Version 0.1.0
 -------------
