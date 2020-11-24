@@ -1,4 +1,6 @@
 import asyncio
+import concurrent.futures
+from concurrent.futures.process import BrokenProcessPool, ProcessPoolExecutor
 import json
 import os
 import unittest
@@ -385,6 +387,92 @@ class DiffingServerResponseSizeTest(DiffingServerTestCase):
             result = json.loads(response.body)
             assert result['change_count'] == 0
             assert len(result['diff'][0][1]) == 1024
+
+
+class BrokenProcessPoolExecutor(concurrent.futures.Executor):
+    "Fake process pool that only raises BrokenProcessPool exceptions."
+    submit_count = 0
+
+    def submit(self, fn, *args, **kwargs):
+        self.submit_count += 1
+        result = concurrent.futures.Future()
+        result.set_exception(BrokenProcessPool(
+            'This pool is broken, yo'
+        ))
+        return result
+
+
+class ExecutionPoolTestCase(DiffingServerTestCase):
+    def fetch_async(self, path, **kwargs):
+        "Like AyncHTTPTestCase.fetch, but async."
+        url = self.get_url(path)
+        return self.http_client.fetch(url, **kwargs)
+
+    def test_rebuilds_process_pool_when_broken(self):
+        # Get a custom executor that will always fail the first time, but get
+        # a real one that will succeed afterward.
+        did_get_executor = False
+        def get_executor(self, reset=False):
+            nonlocal did_get_executor
+            if did_get_executor:
+                return ProcessPoolExecutor(1)
+            else:
+                did_get_executor = True
+                return BrokenProcessPoolExecutor()
+
+        with patch.object(df.DiffHandler, 'get_diff_executor', get_executor):
+            response = self.fetch('/html_source_dmp?format=json&'
+                                  f'a=file://{fixture_path("empty.txt")}&'
+                                  f'b=file://{fixture_path("empty.txt")}')
+            assert response.code == 200
+            assert did_get_executor == True
+
+    def test_diff_returns_error_if_process_pool_repeatedly_breaks(self):
+        # Set a custom executor that will always fail.
+        def get_executor(self, reset=False):
+            return BrokenProcessPoolExecutor()
+
+        with patch.object(df.DiffHandler, 'get_diff_executor', get_executor):
+            response = self.fetch('/html_source_dmp?format=json&'
+                                  f'a=file://{fixture_path("empty.txt")}&'
+                                  f'b=file://{fixture_path("empty.txt")}')
+            self.json_check(response)
+            assert response.code == 500
+
+    @tornado.testing.gen_test
+    async def test_rebuilds_process_pool_cooperatively(self):
+        """
+        Make sure that two parallel diffing failures only cause the process
+        pool to be rebuilt once, not multiple times.
+        """
+        # Get a custom executor that will always fail the first time, but get
+        # a real one that will succeed afterward.
+        executor_resets = 0
+        good_executor = ProcessPoolExecutor(1)
+        bad_executor = BrokenProcessPoolExecutor()
+        def get_executor(self, reset=False):
+            nonlocal executor_resets
+            if reset:
+                executor_resets += 1
+            if executor_resets > 0:
+                return good_executor
+            else:
+                return bad_executor
+
+        with patch.object(df.DiffHandler, 'get_diff_executor', get_executor):
+            one = self.fetch_async('/html_source_dmp?format=json&'
+                                   f'a=file://{fixture_path("empty.txt")}&'
+                                   f'b=file://{fixture_path("empty.txt")}')
+            two = self.fetch_async('/html_source_dmp?format=json&'
+                                   f'a=file://{fixture_path("empty.txt")}&'
+                                   f'b=file://{fixture_path("empty.txt")}')
+            response1, response2 = await asyncio.gather(one, two)
+            assert response1.code == 200
+            assert response2.code == 200
+            assert executor_resets == 1
+            # Ensure *both* diffs hit the bad executor, so we know we didn't
+            # have one reset because only one request hit the bad executor.
+            assert bad_executor.submit_count == 2
 
 
 def mock_diffing_method(c_body):
