@@ -34,6 +34,77 @@ def remove_extras(html):
 # `test_html_diff.py`. Most of these are written generically enough they could
 # feasibly work with any visual HTML diff routine.
 
+def test_html_diff_render_basics():
+    # NOTE: the bodies here are all on one line to make it easy to validate
+    # that the diff did not meaningfully change the spacing around tags/text.
+    result = html_diff_render(
+        '''
+        <!doctype html>
+        <html>
+            <head>
+                <title>Old Version</title>
+                <meta name="a_name" value="a_value">
+            </head>
+            <body>Hello Alice</body></html>
+        ''',
+        '''
+        <!doctype html>
+        <html>
+            <head>
+                <title>New Version</title>
+                <meta name="b_name" value="b_value">
+            </head>
+            <body>Hello there, Sally</body></html>
+        ''',
+        include='all')
+
+    assert 'deletions' in result
+    assert result['deletions'].startswith('<!DOCTYPE html>\n<html>')
+    assert 'insertions' in result
+    assert result['insertions'].startswith('<!DOCTYPE html>\n<html>')
+    assert 'combined' in result
+    assert result['combined'].startswith('<!DOCTYPE html>\n<html>')
+
+    # The <head> of the diffs should contain special diff styles.
+    deletions_head = get_head(result['deletions'])
+    assert '<style id="wm-diff-style"' in deletions_head
+    insertions_head = get_head(result['insertions'])
+    assert '<style id="wm-diff-style"' in insertions_head
+    combined_head = get_head(result['combined'])
+    assert '<style id="wm-diff-style"' in combined_head
+
+    # The <head> of the deletions/insertions should be otherwise unchanged.
+    deletions_head = remove_extras(deletions_head).strip()
+    assert deletions_head == ('<title>Old Version</title>\n'
+                              '<meta name="a_name" value="a_value"/>')
+    insertions_head = remove_extras(insertions_head).strip()
+    assert insertions_head == ('<title>New Version</title>\n'
+                               '<meta name="b_name" value="b_value"/>')
+
+    # The combined <head> is the new version, but includes a diff of the title
+    # in a <meta> element and the old version content in a <template>.
+    combined_head = remove_extras(combined_head).strip()
+    assert combined_head == (
+'''<title>New Version</title>
+<meta name="b_name" value="b_value"/>
+<meta content='&lt;del class="wm-diff"&gt;Old&lt;/del&gt;&lt;ins class="wm-diff"&gt;New&lt;/ins&gt; Version' name="wm-diff-title"/>\
+<template id="wm-diff-old-head">
+                <title>Old Version</title>
+                <meta name="a_name" value="a_value"/>
+            </template>''')
+
+    # And finally, the body shows deletions with `<del class="wm-diff">` and
+    # insertions with `<ins class="wm-diff">`.
+    deletions_body = remove_extras(get_body(result['deletions'])).strip()
+    assert deletions_body == 'Hello <del class="wm-diff">Alice</del>'
+
+    insertions_body = remove_extras(get_body(result['insertions'])).strip()
+    assert insertions_body == 'Hello <ins class="wm-diff">there, Sally</ins>'
+
+    combined_body = remove_extras(get_body(result['combined'])).strip()
+    assert combined_body == 'Hello <del class="wm-diff">Alice</del><ins class="wm-diff">there, Sally</ins>'
+
+
 def test_html_diff_render_works_on_pages_with_no_head():
     result = html_diff_render('<html><body>Hello</body></html>',
                               '<html><body>Goodbye</body></html>',
