@@ -15,7 +15,7 @@ This is a bugfix release that focuses on :func:`web_monitoring_diff.html_diff_re
 
 - Improve handling of lazy-loaded images in :func:`web_monitoring_diff.html_diff_render`. When images are lazy-loaded via JS, they usually use the ``data-src`` or ``data-srcset`` attributes, and we now check those, too. Additionally, if two images have no detectable URLs, we now treat them as the same, rather than different. (`#39 <https://github.com/edgi-govdata-archiving/web-monitoring-diff/issues/39>`_)
 
-- Stop showing inline scripts and styles in :func:`web_monitoring_diff.html_diff_render`. These still get wrapped with ``<del>`` or ``<ins>`` elements, but they don’t show up visually since they aren’t elements that should be visually rendered. (`#43 <https://github.com/edgi-govdata-archiving/web-monitoring-diff/issues/43>`_
+- Stop showing inline scripts and styles in :func:`web_monitoring_diff.html_diff_render`. These still get wrapped with ``<del>`` or ``<ins>`` elements, but they don’t show up visually since they aren’t elements that should be visually rendered. (`#43 <https://github.com/edgi-govdata-archiving/web-monitoring-diff/issues/43>`_)
 
 
 Version 0.1.0
