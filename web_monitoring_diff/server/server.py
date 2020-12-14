@@ -36,6 +36,7 @@ sentry_sdk.init(ignore_errors=[KeyboardInterrupt])
 sentry_sdk.integrations.logging.ignore_logger('tornado.access')
 
 DIFFER_PARALLELISM = int(os.environ.get('DIFFER_PARALLELISM', 10))
+RESTART_BROKEN_DIFFER = os.environ.get('RESTART_BROKEN_DIFFER', 'False').strip().lower() == 'true'
 
 # Map tokens in the REST API to functions in modules.
 # The modules do not have to be part of the web_monitoring_diff package.
@@ -208,6 +209,7 @@ def initialize_diff_worker():
 
 class DiffServer(tornado.web.Application):
     terminating = False
+    server = None
 
     def listen(self, port, address='', **kwargs):
         self.server = super().listen(port, address, **kwargs)
@@ -220,9 +222,11 @@ class DiffServer(tornado.web.Application):
         Otherwise, diffs are allowed to try and finish.
         """
         self.terminating = True
-        self.server.stop()
+        if self.server:
+            self.server.stop()
         await self.shutdown_differs(immediate)
-        await self.server.close_all_connections()
+        if self.server:
+            await self.server.close_all_connections()
 
     async def shutdown_differs(self, immediate=False):
         """Stop all child processes used for running diffs."""
@@ -237,6 +241,12 @@ class DiffServer(tornado.web.Application):
                     child.kill()
             else:
                 await shutdown_executor_in_loop(differs)
+
+    async def quit(self, immediate=False, code=0):
+        await self.shutdown(immediate=immediate)
+        tornado.ioloop.IOLoop.current().stop()
+        if code:
+            sys.exit(code)
 
     def handle_signal(self, signal_type, frame):
         """Handle a signal by shutting down the application and IO loop."""
@@ -515,6 +525,16 @@ class DiffHandler(BaseHandler):
                     if executor == old_executor:
                         executor = self.get_diff_executor(reset=True)
                 else:
+                    # If we shouldn't allow the server to keep rebuilding the
+                    # differ pool for new requests, schedule a shutdown.
+                    # (*Schuduled* so that current requests have a chance to
+                    # complete with an error.)
+                    if not RESTART_BROKEN_DIFFER:
+                        logger.error('Process pool for diffing has failed too '
+                                     'many times; quitting server...')
+                        tornado.ioloop.IOLoop.current().add_callback(
+                            self.application.quit,
+                            code=10)
                     raise
 
     # NOTE: this doesn't do anything async, but if we change it to do so, we
