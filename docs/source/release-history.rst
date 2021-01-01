@@ -2,8 +2,8 @@
 Release History
 ===============
 
-In Development
---------------
+Version 0.1.2rc1 (2021-01-01)
+-----------------------------
 
 - The server uses a pool of child processes to run diffs. If the pool breaks while running a diff, it will be re-created once, and, if it fails again, the server will now crash with an exit code of ``10``. (An external process manager like Supervisor, Kubernetes, etc. can then decide how to handle the situation.) Previously, the diff would fail at this point, but server would try to re-create the process pool again the next time a diff was requested. You can opt-in to the old behavior by setting the ``RESTART_BROKEN_DIFFER`` environment variable to ``true``. (`#49 <https://github.com/edgi-govdata-archiving/web-monitoring-diff/issues/49>`_)
 
