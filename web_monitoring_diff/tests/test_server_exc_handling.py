@@ -393,6 +393,9 @@ class BrokenProcessPoolExecutor(concurrent.futures.Executor):
     "Fake process pool that only raises BrokenProcessPool exceptions."
     submit_count = 0
 
+    def __init__(max_workers=None, mp_context=None, initializer=None, initargs=()):
+        return super().__init__()
+
     def submit(self, fn, *args, **kwargs):
         self.submit_count += 1
         result = concurrent.futures.Future()
@@ -403,10 +406,10 @@ class BrokenProcessPoolExecutor(concurrent.futures.Executor):
 
 
 class ExecutionPoolTestCase(DiffingServerTestCase):
-    def fetch_async(self, path, **kwargs):
+    def fetch_async(self, path, raise_error=False, **kwargs):
         "Like AyncHTTPTestCase.fetch, but async."
         url = self.get_url(path)
-        return self.http_client.fetch(url, **kwargs)
+        return self.http_client.fetch(url, raise_error=raise_error, **kwargs)
 
     def test_rebuilds_process_pool_when_broken(self):
         # Get a custom executor that will always fail the first time, but get
@@ -427,7 +430,8 @@ class ExecutionPoolTestCase(DiffingServerTestCase):
             assert response.code == 200
             assert did_get_executor == True
 
-    def test_diff_returns_error_if_process_pool_repeatedly_breaks(self):
+    @patch.object(df.DiffServer, "quit")
+    def test_diff_returns_error_if_process_pool_repeatedly_breaks(self, _):
         # Set a custom executor that will always fail.
         def get_executor(self, reset=False):
             return BrokenProcessPoolExecutor()
@@ -473,6 +477,46 @@ class ExecutionPoolTestCase(DiffingServerTestCase):
             # Ensure *both* diffs hit the bad executor, so we know we didn't
             # have one reset because only one request hit the bad executor.
             assert bad_executor.submit_count == 2
+
+    # NOTE: the real `quit` tears up the server, which causes porblems with
+    # the test, so we just mock it and test that it was called, rather than
+    # checking whether `sys.exit` was ultimately called. Not totally ideal,
+    # but better than no testing.
+    @patch.object(df.DiffServer, "quit")
+    def test_server_exits_if_process_pool_repeatedly_breaks(self, mock_quit):
+        # Set a custom executor that will always fail.
+        def get_executor(self, reset=False):
+            return BrokenProcessPoolExecutor()
+
+        with patch.object(df.DiffHandler, 'get_diff_executor', get_executor):
+            response = self.fetch('/html_source_dmp?format=json&'
+                                  f'a=file://{fixture_path("empty.txt")}&'
+                                  f'b=file://{fixture_path("empty.txt")}')
+            self.json_check(response)
+            assert response.code == 500
+
+        assert mock_quit.called
+        assert mock_quit.call_args == ({'code': 10},)
+
+    # NOTE: the real `quit` tears up the server, which causes porblems with
+    # the test, so we just mock it and test that it was called, rather than
+    # checking whether `sys.exit` was ultimately called. Not totally ideal,
+    # but better than no testing.
+    @patch.object(df.DiffServer, "quit")
+    @patch('web_monitoring_diff.server.server.RESTART_BROKEN_DIFFER', True)
+    def test_server_does_not_exit_if_env_var_set_when_process_pool_repeatedly_breaks(self, mock_quit):
+        # Set a custom executor that will always fail.
+        def get_executor(self, reset=False):
+            return BrokenProcessPoolExecutor()
+
+        with patch.object(df.DiffHandler, 'get_diff_executor', get_executor):
+            response = self.fetch('/html_source_dmp?format=json&'
+                                  f'a=file://{fixture_path("empty.txt")}&'
+                                  f'b=file://{fixture_path("empty.txt")}')
+            self.json_check(response)
+            assert response.code == 500
+
+        assert not mock_quit.called
 
 
 def mock_diffing_method(c_body):
