@@ -40,6 +40,7 @@ release = web_monitoring_diff.__version__
 extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.autosummary',
+    'sphinx.ext.extlinks',
     'sphinx.ext.githubpages',
     'sphinx.ext.intersphinx',
     'sphinx.ext.mathjax',
@@ -62,6 +63,11 @@ templates_path = ['_templates']
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = []
+
+# Set up link shortcuts
+extlinks = {
+    'issue': ('https://github.com/edgi-govdata-archiving/web-monitoring-diff/issues/%s', '#'),
+}
 
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {
