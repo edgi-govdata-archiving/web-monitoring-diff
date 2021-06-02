@@ -10,7 +10,7 @@
 coverage ~=5.5
 flake8 ~=3.9.2
 pytest ~=6.2.4
-ipython ~=7.23.0
+ipython ~=7.24.0
 numpydoc ~=1.1.0
 sphinx ~=3.5.4
 sphinx-copybutton ~=0.3.1
