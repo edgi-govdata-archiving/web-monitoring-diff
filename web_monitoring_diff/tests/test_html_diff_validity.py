@@ -176,6 +176,14 @@ def test_html_diff_render_should_check_content_type_header():
             b_headers={'Content-Type': 'image/jpeg'})
 
 
+def test_html_diff_render_should_not_check_content_type_header_if_header_is_malformed():
+    html_diff_render(
+        '<p>Just a little HTML</p>',
+        '<p>Just some HTML</p>',
+        a_headers={'Content-Type': '#<mime::nulltype:0x007f2a523499b8>'},
+        b_headers={'Content-Type': 'text/html'})
+
+
 def test_html_diff_render_should_not_check_content_type_header_if_content_type_options_is_nocheck():
     html_diff_render(
         '<p>Just a little HTML</p>',
