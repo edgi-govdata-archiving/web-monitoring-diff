@@ -2,6 +2,12 @@
 Release History
 ===============
 
+In Development
+--------------
+
+- Ignore invalid `Content-Type` headers when diffing HTML. (:issue:`75`)
+
+
 Version 0.1.2 (2021-04-01)
 -----------------------------
 
