@@ -3,16 +3,23 @@ jobs:
   build:
     working_directory: ~/web-monitoring-diff
     docker:
-      - image: circleci/python:3.7
+      - image: cimg/python:3.7
     steps:
       - checkout
+      - run:
+          name: Install System Dependencies
+          command: |
+            sudo apt-get update
+            sudo apt-get install \
+              libxml2-dev libxslt-dev libssl-dev openssl libcurl4-openssl-dev
+
       - restore_cache:
           keys:
-            - cache-v1-{{ arch }}-{{ checksum "requirements.txt" }}-{{ checksum "requirements-server.txt" }}-{{ checksum "requirements-dev.txt" }}-{{ checksum "requirements-experimental.txt" }}
-            - cache-v1-{{ arch }}-{{ checksum "requirements.txt" }}-{{ checksum "requirements-server.txt" }}-{{ checksum "requirements-dev.txt" }}-
-            - cache-v1-{{ arch }}-{{ checksum "requirements.txt" }}-{{ checksum "requirements-server.txt" }}-
-            - cache-v1-{{ arch }}-{{ checksum "requirements.txt" }}-
-            - cache-v1-{{ arch }}-
+            - cache-v2-{{ arch }}-{{ checksum "requirements.txt" }}-{{ checksum "requirements-server.txt" }}-{{ checksum "requirements-dev.txt" }}-{{ checksum "requirements-experimental.txt" }}
+            - cache-v2-{{ arch }}-{{ checksum "requirements.txt" }}-{{ checksum "requirements-server.txt" }}-{{ checksum "requirements-dev.txt" }}-
+            - cache-v2-{{ arch }}-{{ checksum "requirements.txt" }}-{{ checksum "requirements-server.txt" }}-
+            - cache-v2-{{ arch }}-{{ checksum "requirements.txt" }}-
+            - cache-v2-{{ arch }}-
 
       # Bundle install dependencies
       - run:
@@ -25,7 +32,7 @@ jobs:
 
       # Store bundle cache
       - save_cache:
-          key: cache-v1-{{ arch }}-{{ checksum "requirements.txt" }}-{{ checksum "requirements-server.txt" }}-{{ checksum "requirements-dev.txt" }}-{{ checksum "requirements-experimental.txt" }}
+          key: cache-v2-{{ arch }}-{{ checksum "requirements.txt" }}-{{ checksum "requirements-server.txt" }}-{{ checksum "requirements-dev.txt" }}-{{ checksum "requirements-experimental.txt" }}
           paths:
             - venv
 
