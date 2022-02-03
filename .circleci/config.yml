@@ -9,7 +9,7 @@ jobs:
       - run:
           name: Install System Dependencies
           command: |
-            apt-get install \
+            sudo apt-get install \
               libxml2-dev libxslt-dev libssl-dev openssl libcurl4-openssl-dev
 
       - restore_cache:
