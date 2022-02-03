@@ -6,6 +6,12 @@ jobs:
       - image: cimg/python:3.7
     steps:
       - checkout
+      - run:
+          name: Install System Dependencies
+          command: |
+            apt-get install \
+              libxml2-dev libxslt-dev libssl-dev openssl libcurl4-openssl-dev
+
       - restore_cache:
           keys:
             - cache-v2-{{ arch }}-{{ checksum "requirements.txt" }}-{{ checksum "requirements-server.txt" }}-{{ checksum "requirements-dev.txt" }}-{{ checksum "requirements-experimental.txt" }}
