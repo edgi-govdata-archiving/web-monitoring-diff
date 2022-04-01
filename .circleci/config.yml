@@ -1,9 +1,15 @@
 version: 2.1
+
+parameters:
+  python-version:
+    type: string
+    default: "3.7.13"
+
 jobs:
   build:
     working_directory: ~/web-monitoring-diff
     docker:
-      - image: cimg/python:3.7
+      - image: cimg/python:<< pipeline.parameters.python-version >>
     steps:
       - checkout
       - run:
@@ -15,11 +21,11 @@ jobs:
 
       - restore_cache:
           keys:
-            - cache-v2-{{ arch }}-{{ checksum "requirements.txt" }}-{{ checksum "requirements-server.txt" }}-{{ checksum "requirements-dev.txt" }}-{{ checksum "requirements-experimental.txt" }}
-            - cache-v2-{{ arch }}-{{ checksum "requirements.txt" }}-{{ checksum "requirements-server.txt" }}-{{ checksum "requirements-dev.txt" }}-
-            - cache-v2-{{ arch }}-{{ checksum "requirements.txt" }}-{{ checksum "requirements-server.txt" }}-
-            - cache-v2-{{ arch }}-{{ checksum "requirements.txt" }}-
-            - cache-v2-{{ arch }}-
+            - cache-v2-{{ arch }}-python<< pipeline.parameters.python-version >>-{{ checksum "requirements.txt" }}-{{ checksum "requirements-server.txt" }}-{{ checksum "requirements-dev.txt" }}-{{ checksum "requirements-experimental.txt" }}
+            - cache-v2-{{ arch }}-python<< pipeline.parameters.python-version >>-{{ checksum "requirements.txt" }}-{{ checksum "requirements-server.txt" }}-{{ checksum "requirements-dev.txt" }}-
+            - cache-v2-{{ arch }}-python<< pipeline.parameters.python-version >>-{{ checksum "requirements.txt" }}-{{ checksum "requirements-server.txt" }}-
+            - cache-v2-{{ arch }}-python<< pipeline.parameters.python-version >>-{{ checksum "requirements.txt" }}-
+            - cache-v2-{{ arch }}-python<< pipeline.parameters.python-version >>-
 
       # Bundle install dependencies
       - run:
@@ -32,7 +38,7 @@ jobs:
 
       # Store bundle cache
       - save_cache:
-          key: cache-v2-{{ arch }}-{{ checksum "requirements.txt" }}-{{ checksum "requirements-server.txt" }}-{{ checksum "requirements-dev.txt" }}-{{ checksum "requirements-experimental.txt" }}
+          key: cache-v2-{{ arch }}-python<< pipeline.parameters.python-version >>-{{ checksum "requirements.txt" }}-{{ checksum "requirements-server.txt" }}-{{ checksum "requirements-dev.txt" }}-{{ checksum "requirements-experimental.txt" }}
           paths:
             - venv
 
@@ -58,7 +64,8 @@ jobs:
     #         cd docs && make html
 
   build_docker:
-    machine: true
+    machine:
+      image: ubuntu-2004:202111-02
     steps:
       - checkout
       - run: |
@@ -74,7 +81,8 @@ jobs:
             - docker-image
 
   publish_docker:
-    machine: true
+    machine:
+      image: ubuntu-2004:202111-02
     steps:
       - attach_workspace:
           at: /tmp/workspace
