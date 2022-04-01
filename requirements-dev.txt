@@ -9,7 +9,7 @@
 # setup.py.
 coverage ~=6.3
 flake8 ~=4.0.1
-pytest ~=7.0.1
+pytest ~=7.1.1
 ipython ~=7.32.0
 numpydoc ~=1.2
 sphinx ~=4.3.2
