@@ -6,7 +6,7 @@
 # We separate them out so that the final `release` image can layer on top of
 # this one without needing compiler-related packages.
 ##
-FROM python:3.7-slim as base
+FROM python:3.7.13-slim as base
 LABEL maintainer="enviroDGI@gmail.com"
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
