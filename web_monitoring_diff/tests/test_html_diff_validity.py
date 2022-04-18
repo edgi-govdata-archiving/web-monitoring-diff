@@ -175,6 +175,20 @@ def test_html_diff_render_should_check_content_type_header():
             a_headers={'Content-Type': 'text/html'},
             b_headers={'Content-Type': 'image/jpeg'})
 
+    with pytest.raises(UndiffableContentError):
+        html_diff_render(
+            '<p>Just a little HTML</p>',
+            'Some other text',
+            a_headers={'Content-Type': 'image/jpeg'},
+            b_headers={'Content-Type': 'text/html'})
+
+    with pytest.raises(UndiffableContentError):
+        html_diff_render(
+            '<p>Just a little HTML</p>',
+            'Some other text',
+            a_headers={'Content-Type': 'image/jpeg'},
+            b_headers={'Content-Type': 'image/jpeg'})
+
 
 def test_html_diff_render_should_not_check_content_type_header_if_header_is_malformed():
     html_diff_render(
