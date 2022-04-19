@@ -41,6 +41,14 @@ UNKNOWN_CONTENT_TYPE_PATTERN = re.compile(r'^(%s)$' % '|'.join((
     r'text/.+'
 )))
 
+# Roughly checks whether a Content-Type header value is valid. For syntax, see:
+# - https://datatracker.ietf.org/doc/html/rfc2045#section-5.1
+# - https://datatracker.ietf.org/doc/html/rfc6838#section-4.2
+VALID_CONTENT_TYPE_PATTERN = re.compile(
+    r'^[a-z0-9][a-z0-9!#$&^_.+-]*/[a-z0-9][a-z0-9!#$&^_.+-]*$',
+    re.IGNORECASE
+)
+
 
 def is_not_html(text, headers=None, check_options='normal'):
     """
@@ -63,7 +71,7 @@ def is_not_html(text, headers=None, check_options='normal'):
     """
     if headers and (check_options == 'normal' or check_options == 'nosniff'):
         content_type = headers.get('Content-Type', '').split(';', 1)[0].strip()
-        if content_type:
+        if content_type and VALID_CONTENT_TYPE_PATTERN.match(content_type):
             if content_type in ACCEPTABLE_CONTENT_TYPES:
                 return False
             elif not UNKNOWN_CONTENT_TYPE_PATTERN.match(content_type):
