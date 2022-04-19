@@ -61,6 +61,12 @@ setup(
     # TODO: migrate to entry_points, which is recommended.
     scripts=glob.glob('scripts/*'),
     license="GPL-3.0-only",
+    project_urls={
+        'Documentation': 'https://web-monitoring-diff.readthedocs.io/en/stable/',
+        'Changelog': 'https://web-monitoring-diff.readthedocs.io/en/stable/release-history.html',
+        'Source code': 'https://github.com/edgi-govdata-archiving/web-monitoring-diff',
+        'Issues': 'https://github.com/edgi-govdata-archiving/web-monitoring-diff/issues',
+    },
     classifiers=[
         'Development Status :: 2 - Pre-Alpha',
         'Natural Language :: English',
