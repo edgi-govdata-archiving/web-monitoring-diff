@@ -250,7 +250,7 @@ Thanks to the following people for all their contributions! This project depends
 
 ## License & Copyright
 
-Copyright (C) 2017-2020 Environmental Data and Governance Initiative (EDGI)
+Copyright (C) 2017-2022 Environmental Data and Governance Initiative (EDGI)
 
 This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, version 3.0.
 

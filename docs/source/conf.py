@@ -18,7 +18,7 @@
 # -- Project information -----------------------------------------------------
 
 project = 'web-monitoring-diff'
-copyright = '2017-2020, Environmental Data & Governance Initiative'
+copyright = '2017-2022, Environmental Data & Governance Initiative'
 author = 'Environmental Data & Governance Initiative'
 
 # The version info for the project you're documenting, acts as replacement for
