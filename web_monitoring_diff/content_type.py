@@ -38,6 +38,7 @@ ACCEPTABLE_CONTENT_TYPES = (
 # Matches Content Types that *could* be acceptable for diffing as HTML
 UNKNOWN_CONTENT_TYPE_PATTERN = re.compile(r'^(%s)$' % '|'.join((
     r'application/octet-stream',
+    r'application/x-download',
     r'text/.+'
 )))
 
