@@ -11,7 +11,7 @@ This releases fixes some minor issues around content-type checking for HTML-rela
 
 - Ignore the ``application/x-download`` content type. This content-type isn't really about the content, but is frequently used to make a browser download a file rather than display it inline. It no longer affects parsing or diffing. (:issue:`105`)
 
-This release also adds some nice sidebar links for documentation, the changelog, issues, and source code to PyPI.
+This release also adds some nice sidebar links for documentation, the changelog, issues, and source code to PyPI. (:issue:`107`)
 
 
 Version 0.1.2 (2021-04-01)
