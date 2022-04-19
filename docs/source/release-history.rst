@@ -7,6 +7,8 @@ In Development
 
 - Ignore invalid `Content-Type` headers when diffing HTML. (:issue:`75`)
 
+- Ignore `application/x-download` Content-Type when diffing HTML.
+
 
 Version 0.1.2 (2021-04-01)
 -----------------------------
