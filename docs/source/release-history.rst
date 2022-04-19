@@ -2,16 +2,18 @@
 Release History
 ===============
 
-In Development
---------------
+Version 0.1.3 (2022-04-18)
+--------------------------
 
-- Ignore invalid `Content-Type` headers when diffing HTML. (:issue:`75`)
+This releases fixes some minor issues around content-type checking for HTML-related diffs (``html_diff_render`` and ``links_diff``). Both lean towards making content-type checking more lenient; our goal is to stop wasted diffing effort early *when we know it's not HTML,* not to only diff things are definitely HTML:
 
-- Ignore `application/x-download` Content-Type when diffing HTML.
+- Ignore invalid `Content-Type` headers. These happen fairly frequently in the wild — especially on HTML pages — and we now ignore them instead of treating them as implying the content is not HTML. (:issue:`75`)
+
+- Ignore the `application/x-download` content type. This content-type isn't really about the content, but is frequently used to make a browser download a file rather than display it inline. It no longer affects parsing or diffing. (:issue:`105`)
 
 
 Version 0.1.2 (2021-04-01)
------------------------------
+--------------------------
 
 - The server uses a pool of child processes to run diffs. If the pool breaks while running a diff, it will be re-created once, and, if it fails again, the server will now crash with an exit code of ``10``. (An external process manager like Supervisor, Kubernetes, etc. can then decide how to handle the situation.) Previously, the diff would fail at this point, but server would try to re-create the process pool again the next time a diff was requested. You can opt-in to the old behavior by setting the ``RESTART_BROKEN_DIFFER`` environment variable to ``true``. (:issue:`49`)
 
