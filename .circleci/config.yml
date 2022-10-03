@@ -1,67 +1,91 @@
 version: 2.1
 
 parameters:
-  python-version:
+  primary-python-version:
     type: string
-    default: "3.7.13"
+    default: "3.10.7"
 
-jobs:
-  build:
-    working_directory: ~/web-monitoring-diff
-    docker:
-      - image: cimg/python:<< pipeline.parameters.python-version >>
+commands:
+  setup_pip:
+    description: "Set Up Dependencies"
+    parameters:
+      python-version:
+        type: string
+      install-docs:
+        description: Install docs dependencies
+        type: boolean
+        default: false
     steps:
-      - checkout
-      - run:
-          name: Install System Dependencies
-          command: |
-            sudo apt-get update
-            sudo apt-get install \
-              libxml2-dev libxslt-dev libssl-dev openssl libcurl4-openssl-dev
-
       - restore_cache:
           keys:
-            - cache-v2-{{ arch }}-python<< pipeline.parameters.python-version >>-{{ checksum "requirements.txt" }}-{{ checksum "requirements-server.txt" }}-{{ checksum "requirements-dev.txt" }}-{{ checksum "requirements-experimental.txt" }}
-            - cache-v2-{{ arch }}-python<< pipeline.parameters.python-version >>-{{ checksum "requirements.txt" }}-{{ checksum "requirements-server.txt" }}-{{ checksum "requirements-dev.txt" }}-
-            - cache-v2-{{ arch }}-python<< pipeline.parameters.python-version >>-{{ checksum "requirements.txt" }}-{{ checksum "requirements-server.txt" }}-
-            - cache-v2-{{ arch }}-python<< pipeline.parameters.python-version >>-{{ checksum "requirements.txt" }}-
-            - cache-v2-{{ arch }}-python<< pipeline.parameters.python-version >>-
+            - cache-v3-{{ arch }}-python<< parameters.python-version >>-{{ checksum "requirements.txt" }}-{{ checksum "requirements-server.txt" }}-{{ checksum "requirements-dev.txt" }}-{{ checksum "requirements-experimental.txt" }}-{{ checksum "requirements-docs.txt" }}
+            - cache-v3-{{ arch }}-python<< parameters.python-version >>-{{ checksum "requirements.txt" }}-{{ checksum "requirements-server.txt" }}-{{ checksum "requirements-dev.txt" }}-{{ checksum "requirements-experimental.txt" }}-
+            - cache-v3-{{ arch }}-python<< parameters.python-version >>-{{ checksum "requirements.txt" }}-{{ checksum "requirements-server.txt" }}-{{ checksum "requirements-dev.txt" }}-
+            - cache-v3-{{ arch }}-python<< parameters.python-version >>-{{ checksum "requirements.txt" }}-{{ checksum "requirements-server.txt" }}-
+            - cache-v3-{{ arch }}-python<< parameters.python-version >>-{{ checksum "requirements.txt" }}-
+            - cache-v3-{{ arch }}-python<< parameters.python-version >>-
 
-      # Bundle install dependencies
       - run:
           name: Install Dependencies
           command: |
-            python -m venv venv
-            . venv/bin/activate
-            pip install -e .[server,dev] --no-binary lxml
+            python -m venv ~/venv
+            . ~/venv/bin/activate
+            # Ensure pip is up-to-date
+            pip install --upgrade pip
+            pip install .[server,dev] --no-binary lxml
             pip install -r requirements-experimental.txt
 
-      # Store bundle cache
-      - save_cache:
-          key: cache-v2-{{ arch }}-python<< pipeline.parameters.python-version >>-{{ checksum "requirements.txt" }}-{{ checksum "requirements-server.txt" }}-{{ checksum "requirements-dev.txt" }}-{{ checksum "requirements-experimental.txt" }}
-          paths:
-            - venv
+      # Docs dependencies are only compatible on Python 3.10+, so only install
+      # them on demand.
+      - when:
+          condition: << parameters.install-docs >>
+          steps:
+            - run:
+                command: |
+                  . ~/venv/bin/activate
+                  pip install -r requirements-docs.txt
 
+      - save_cache:
+          key: cache-v3-{{ arch }}-python<< parameters.python-version >>-{{ checksum "requirements.txt" }}-{{ checksum "requirements-server.txt" }}-{{ checksum "requirements-dev.txt" }}-{{ checksum "requirements-experimental.txt" }}-{{ checksum "requirements-docs.txt" }}
+          paths:
+            - ~/venv
+
+jobs:
+  test:
+    parameters:
+      python-version:
+        type: string
+    working_directory: ~/web-monitoring-diff
+    docker:
+      - image: cimg/python:<< parameters.python-version >>
+    steps:
+      - checkout
+      - setup_pip:
+          python-version: << parameters.python-version >>
       - run:
           name: Tests
           command: |
-            . venv/bin/activate
+            . ~/venv/bin/activate
             coverage run -m pytest -vv
       - run:
           name: Coverage
           command: |
-            . venv/bin/activate
+            . ~/venv/bin/activate
             coverage report -m
+
+  lint:
+    working_directory: ~/web-monitoring-diff
+    docker:
+      - image: cimg/python:<< pipeline.parameters.primary-python-version >>
+    steps:
+      - checkout
+      - setup_pip:
+          python-version: << pipeline.parameters.primary-python-version >>
       - run:
           name: Code linting
           command: |
-            . venv/bin/activate
+            . ~/venv/bin/activate
             flake8 .
-    #   - run:
-    #       name: Build docs
-    #       command: |
-    #         . venv/bin/activate
-    #         cd docs && make html
 
   build_docker:
     machine:
@@ -149,7 +173,14 @@ workflows:
       #
       # See more in:
       # https://circleci.com/docs/2.0/workflows/#executing-workflows-for-a-git-tag
-      - build:
+      - test:
+          filters:
+            tags:
+              only: /^v.*/
+          matrix:
+            parameters:
+              python-version: ["3.7", "3.8", "3.9", "3.10"]
+      - lint:
           filters:
             tags:
               only: /^v.*/
@@ -160,7 +191,8 @@ workflows:
       # Publishing only happens for tags starting with "v", and no branches.
       - publish_docker:
           requires:
-            - build
+            - test
+            - lint
             - build_docker
           filters:
             branches:

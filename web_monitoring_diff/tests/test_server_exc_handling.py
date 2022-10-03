@@ -560,8 +560,8 @@ class MockAsyncHttpClient(AsyncHTTPClient):
             object and should return `True` if the response should be used. If
             a string, it will be used as a regular expression to match the
             request URL.
-        code : int, optional
-            The HTTP response code to response with. Defaults to 200 (OK).
+        code : int, default: 200
+            The HTTP response code to response with.
         body : string, optional
             The response body to send back.
         headers : dict, optional

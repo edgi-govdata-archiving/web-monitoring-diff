@@ -189,14 +189,19 @@ First, make sure you have an appropriate Python version and the necessary system
 2. Perform an *editable* install of the package in the repo:
 
     ```sh
-    $ pip install -e . --no-binary lxml
+    $ pip install -e .[server,dev,docs] --no-binary lxml
     ```
 
-3. Install additional experimental and development dependencies:
+    NOTE: if you are using Python 3.9 or earlier you may not be able to install both the development and docs dependencies at the same time. Instead, just install the `dev` dependencies:
+
+    ```sh
+    $ pip install -e .[server,dev] --no-binary lxml
+    ```
+
+3. Install additional dependencies for experimental features:
 
     ```sh
     $ pip install -r requirements-experimental.txt
-    $ pip install -r requirements-dev.txt
     ```
 
 4. Make sure it works without errors by running a python interpreter and importing the package:
