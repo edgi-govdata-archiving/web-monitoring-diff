@@ -179,8 +179,9 @@ workflows:
             tags:
               only: /^v.*/
           # TODO: this should be a matrix of 3.7+
-          parameters:
-            python-version: "3.7.13"
+          matrix:
+            parameters:
+              python-version: ["3.7.13"]
       - lint:
           filters:
             tags:
@@ -192,9 +193,7 @@ workflows:
       # Publishing only happens for tags starting with "v", and no branches.
       - publish_docker:
           requires:
-            - test:
-                parameters:
-                  python-version: "3.7.13"
+            - test
             - lint
             - build_docker
           filters:
