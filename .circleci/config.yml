@@ -3,8 +3,7 @@ version: 2.1
 parameters:
   primary-python-version:
     type: string
-    # TODO: make this the current python version
-    default: "3.7.13"
+    default: "3.10.7"
 
 commands:
   setup_pip:
@@ -178,10 +177,9 @@ workflows:
           filters:
             tags:
               only: /^v.*/
-          # TODO: this should be a matrix of 3.7+
           matrix:
             parameters:
-              python-version: ["3.7.13"]
+              python-version: ["3.7", "3.8", "3.9", "3.10"]
       - lint:
           filters:
             tags:
