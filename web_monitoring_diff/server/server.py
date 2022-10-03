@@ -131,8 +131,8 @@ class PublicError(tornado.web.HTTPError):
 
     Parameters
     ----------
-    status_code : int, optional
-        Status code for the response. Defaults to `500`.
+    status_code : int, default: 500
+        Status code for the response.
     public_message : str, optional
         Textual description of the error. This will be publicly visible in
         production mode, unlike `log_message`.
