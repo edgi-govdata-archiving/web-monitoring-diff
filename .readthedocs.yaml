@@ -9,6 +9,12 @@ build:
   os: ubuntu-22.04
   tools:
     python: "3.10"
+  apt_packages:
+    - libxml2-dev
+    - libxslt-dev
+    - libssl-dev
+    - openssl
+    - libcurl4-openssl-dev
 
 python:
   install:
