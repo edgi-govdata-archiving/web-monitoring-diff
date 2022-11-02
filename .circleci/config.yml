@@ -3,7 +3,7 @@ version: 2.1
 parameters:
   primary-python-version:
     type: string
-    default: "3.10.7"
+    default: "3.11.0"
 
 commands:
   setup_pip:
@@ -179,7 +179,7 @@ workflows:
               only: /^v.*/
           matrix:
             parameters:
-              python-version: ["3.7", "3.8", "3.9", "3.10"]
+              python-version: ["3.7", "3.8", "3.9", "3.10", "3.11"]
       - lint:
           filters:
             tags:
