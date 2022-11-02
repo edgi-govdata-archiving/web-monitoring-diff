@@ -54,7 +54,6 @@ def export(func):
         filename = func.__name__ + '-' + '-'.join(kwargs.values()) + '.html'
         with open(OUTPUT_DIR / Path(filename), 'w') as file:
             file.write(d)
-        return d
     return inner
 
 # For now it's unclear what the 'expected' results should be, so these
