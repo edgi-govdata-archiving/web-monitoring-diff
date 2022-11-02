@@ -5,9 +5,9 @@ Release History
 In Development
 --------------
 
-- Updates the diff-match-patch implementation we rely on for simple text diffs to `fast_diff_match_patch v2.x <https://pypi.org/project/fast-diff-match-patch/>`_. (:issue:`127`)
+- Updates the diff-match-patch implementation we rely on for simple text diffs to `fast_diff_match_patch v2.x <https://pypi.org/project/fast-diff-match-patch/>`_. (:issue:`126`)
 
-- Fix misconfigured dependency requirements for html5-parser. This should have no user impact, since there are no releases (yet) in the version range we were accidentally allowing for. (:issue:`127`)
+- Fix misconfigured dependency requirements for html5-parser. This should have no user impact, since there are no releases (yet) in the version range we were accidentally allowing for. (:issue:`126`)
 
 
 Version 0.1.3 (2022-04-18)
