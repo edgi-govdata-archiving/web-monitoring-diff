@@ -1,5 +1,5 @@
 from bs4 import Comment
-from diff_match_patch import diff, diff_bytes
+from fast_diff_match_patch import diff
 import html5_parser
 import re
 import sys
@@ -58,11 +58,9 @@ def side_by_side_text(a_text, b_text):
 
 
 def compute_dmp_diff(a_text, b_text, timelimit=4):
-    if (isinstance(a_text, str) and isinstance(b_text, str)):
-        changes = diff(a_text, b_text, checklines=False, timelimit=timelimit, cleanup_semantic=True, counts_only=False)
-    elif (isinstance(a_text, bytes) and isinstance(b_text, bytes)):
-        changes = diff_bytes(a_text, b_text, checklines=False, timelimit=timelimit, cleanup_semantic=True,
-                             counts_only=False)
+    if (isinstance(a_text, (str, bytes)) and isinstance(b_text, (str, bytes))):
+        changes = diff(a_text, b_text, checklines=False, timelimit=timelimit, cleanup="Semantic",
+                       counts_only=False)
     else:
         raise TypeError("Both the texts should be either of type 'str' or 'bytes'.")
 
