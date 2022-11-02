@@ -2,6 +2,12 @@
 Release History
 ===============
 
+In Development
+--------------
+
+- Updates the diff-match-patch implementation we rely on for simple text diffs to `fast_diff_match_patch v2.x <https://pypi.org/project/fast-diff-match-patch/>`_.
+
+
 Version 0.1.3 (2022-04-18)
 --------------------------
 
