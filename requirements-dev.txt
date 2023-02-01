@@ -7,6 +7,6 @@
 #
 # It only exists to keep the list of dependencies in a separate file from
 # setup.py.
-coverage ~=7.0
+coverage ~=7.1
 flake8 ~=5.0.4
 pytest ~=7.2.1
