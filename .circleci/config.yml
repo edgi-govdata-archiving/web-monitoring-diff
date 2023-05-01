@@ -3,7 +3,7 @@ version: 2.1
 parameters:
   primary-python-version:
     type: string
-    default: "3.10.7"
+    default: "3.10.11"
 
 commands:
   setup_pip:
