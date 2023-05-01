@@ -18,12 +18,12 @@ commands:
     steps:
       - restore_cache:
           keys:
-            - cache-v3-{{ arch }}-python<< parameters.python-version >>-{{ checksum "requirements.txt" }}-{{ checksum "requirements-server.txt" }}-{{ checksum "requirements-dev.txt" }}-{{ checksum "requirements-experimental.txt" }}-{{ checksum "requirements-docs.txt" }}
-            - cache-v3-{{ arch }}-python<< parameters.python-version >>-{{ checksum "requirements.txt" }}-{{ checksum "requirements-server.txt" }}-{{ checksum "requirements-dev.txt" }}-{{ checksum "requirements-experimental.txt" }}-
-            - cache-v3-{{ arch }}-python<< parameters.python-version >>-{{ checksum "requirements.txt" }}-{{ checksum "requirements-server.txt" }}-{{ checksum "requirements-dev.txt" }}-
-            - cache-v3-{{ arch }}-python<< parameters.python-version >>-{{ checksum "requirements.txt" }}-{{ checksum "requirements-server.txt" }}-
-            - cache-v3-{{ arch }}-python<< parameters.python-version >>-{{ checksum "requirements.txt" }}-
-            - cache-v3-{{ arch }}-python<< parameters.python-version >>-
+            - cache-v4-{{ arch }}-python<< parameters.python-version >>-{{ checksum "requirements.txt" }}-{{ checksum "requirements-server.txt" }}-{{ checksum "requirements-dev.txt" }}-{{ checksum "requirements-experimental.txt" }}-{{ checksum "requirements-docs.txt" }}
+            - cache-v4-{{ arch }}-python<< parameters.python-version >>-{{ checksum "requirements.txt" }}-{{ checksum "requirements-server.txt" }}-{{ checksum "requirements-dev.txt" }}-{{ checksum "requirements-experimental.txt" }}-
+            - cache-v4-{{ arch }}-python<< parameters.python-version >>-{{ checksum "requirements.txt" }}-{{ checksum "requirements-server.txt" }}-{{ checksum "requirements-dev.txt" }}-
+            - cache-v4-{{ arch }}-python<< parameters.python-version >>-{{ checksum "requirements.txt" }}-{{ checksum "requirements-server.txt" }}-
+            - cache-v4-{{ arch }}-python<< parameters.python-version >>-{{ checksum "requirements.txt" }}-
+            - cache-v4-{{ arch }}-python<< parameters.python-version >>-
 
       - run:
           name: Install Dependencies
@@ -46,7 +46,7 @@ commands:
                   pip install -r requirements-docs.txt
 
       - save_cache:
-          key: cache-v3-{{ arch }}-python<< parameters.python-version >>-{{ checksum "requirements.txt" }}-{{ checksum "requirements-server.txt" }}-{{ checksum "requirements-dev.txt" }}-{{ checksum "requirements-experimental.txt" }}-{{ checksum "requirements-docs.txt" }}
+          key: cache-v4-{{ arch }}-python<< parameters.python-version >>-{{ checksum "requirements.txt" }}-{{ checksum "requirements-server.txt" }}-{{ checksum "requirements-dev.txt" }}-{{ checksum "requirements-experimental.txt" }}-{{ checksum "requirements-docs.txt" }}
           paths:
             - ~/venv
 
