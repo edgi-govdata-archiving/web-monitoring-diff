@@ -554,10 +554,8 @@ def _htmldiff(old, new, comparator, include='all'):
     """
     old_tokens = tokenize(old, comparator)
     new_tokens = tokenize(new, comparator)
-    # old_tokens = [_customize_token(token) for token in old_tokens]
-    # new_tokens = [_customize_token(token) for token in new_tokens]
-    old_tokens = _limit_spacers(_customize_tokens(old_tokens), MAX_SPACERS)
-    new_tokens = _limit_spacers(_customize_tokens(new_tokens), MAX_SPACERS)
+    old_tokens = _limit_spacers(_insert_spacers(old_tokens), MAX_SPACERS)
+    new_tokens = _limit_spacers(_insert_spacers(new_tokens), MAX_SPACERS)
     # result = htmldiff_tokens(old_tokens, new_tokens)
     # result = diff_tokens(old_tokens, new_tokens) #, include='delete')
     logger.debug('CUSTOMIZED!')
@@ -1044,7 +1042,17 @@ class ImgTagToken(tag_token):
         return super().__hash__()
 
 
-def _customize_tokens(tokens):
+# FIXME: Add a `max` parameter or similar to limit the number of spacers. We
+# currently do this by making a second pass to remove extra spacers
+# (in `_limit_spacers()`), which is completely pointless extra work, and very
+# expensive on big HTML documents.
+#
+# TODO: This entire bit of functionality should be rethought. The spacers were
+# a bit of a hack from the early days when we were slightly customizing lxml's
+# differ, and we've since changed the internals a lot. The spacers have never
+# worked especially well, and we may be better off without them. This needs
+# *lots* of testing, though.
+def _insert_spacers(tokens):
     SPACER_STRING = '\nSPACER'
 
     result = []
