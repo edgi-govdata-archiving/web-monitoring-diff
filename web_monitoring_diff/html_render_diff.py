@@ -831,7 +831,7 @@ def fixup_chunks(chunks, comparator):
 
         elif current_token == TokenType.href:
             href = chunk[1]
-            cur_word = href_token(href, comparator=comparator, pre_tags=tag_accum, trailing_whitespace=" ")
+            cur_word = MinimalHrefToken(href, comparator=comparator, pre_tags=tag_accum, trailing_whitespace=" ")
             tag_accum = []
             result.append(cur_word)
 
@@ -1112,20 +1112,19 @@ def _customize_tokens(tokens):
         #     result.append(SpacerToken(SPACER_STRING))
         #     result.append(SpacerToken(SPACER_STRING))
 
-        customized = _customize_token(token)
-        result.append(customized)
+        result.append(token)
 
-        if str(customized) == "Posts" and str(tokens[token_index - 1]) == 'Other' and str(tokens[token_index - 2]) == 'and': # and str(tokens[token_index - 3]) == 'posts':
+        if str(token) == "Posts" and str(tokens[token_index - 1]) == 'Other' and str(tokens[token_index - 2]) == 'and': # and str(tokens[token_index - 3]) == 'posts':
             logger.debug(f'SPECIAL TAG!\n  pre: {token.pre_tags}\n  token: "{token}"\n  post: {token.post_tags}')
             next_token = tokens[token_index + 1]
             logger.debug(f'SPECIAL TAG!\n  pre: {next_token.pre_tags}\n  token: "{next_token}"\n  post: {next_token.post_tags}')
-            for tag_index, tag in enumerate(customized.post_tags):
+            for tag_index, tag in enumerate(token.post_tags):
                 if tag.startswith('</ul>'):
                     new_token = SpacerToken(SPACER_STRING)
                     result.append(new_token)
-                    new_token = SpacerToken(SPACER_STRING, pre_tags=customized.post_tags[tag_index:])
+                    new_token = SpacerToken(SPACER_STRING, pre_tags=token.post_tags[tag_index:])
                     result.append(new_token)
-                    customized.post_tags = customized.post_tags[:tag_index]
+                    token.post_tags = token.post_tags[:tag_index]
 
         # if isinstance(customized, ImgTagToken):
         #     result.append(SpacerToken(SPACER_STRING))
@@ -1143,7 +1142,7 @@ def _customize_tokens(tokens):
         #     # result.append(SpacerToken(SPACER_STRING, post_tags=customized.post_tags, trailing_whitespace=customized.trailing_whitespace))
         #     customized.post_tags = []
         #     # customized.trailing_whitespace = ''
-        for tag_index, tag in enumerate(customized.post_tags):
+        for tag_index, tag in enumerate(token.post_tags):
             split_here = False
             for name in SEPARATABLE_TAGS:
                 if tag.startswith(f'<{name}'):
@@ -1156,8 +1155,8 @@ def _customize_tokens(tokens):
                 # new_token = SpacerToken(SPACER_STRING, pre_tags=customized.post_tags[tag_index:])
                 # customized.post_tags = customized.post_tags[0:tag_index]
 
-                new_token = SpacerToken(SPACER_STRING, post_tags=customized.post_tags[tag_index:])
-                customized.post_tags = customized.post_tags[0:tag_index]
+                new_token = SpacerToken(SPACER_STRING, post_tags=token.post_tags[tag_index:])
+                token.post_tags = token.post_tags[0:tag_index]
 
                 # tokens.insert(token_index + 1, token)
                 # token = new_token
@@ -1191,25 +1190,6 @@ def _has_heading_tags(tag_list):
         for name in HEADING_TAGS:
             if tag.startswith(f'<{name}') or tag.startswith(f'</{name}'):
                 return True
-
-
-# Seemed so nice and clean! But should probably be merged into
-# `_customize_tokens()` now. Or otherwise it needs to be able to produce more
-# than one token to replace the given token in the stream.
-def _customize_token(token):
-    """
-    Replace existing diffing tokens with customized ones for better output.
-    """
-    if isinstance(token, href_token):
-        return MinimalHrefToken(
-            str(token),
-            comparator=token.comparator,
-            pre_tags=token.pre_tags,
-            post_tags=token.post_tags,
-            trailing_whitespace=token.trailing_whitespace)
-        # return token
-    else:
-        return token
 
 
 # TODO: merge and reconcile this with `merge_change_groups()`, which is 90%
