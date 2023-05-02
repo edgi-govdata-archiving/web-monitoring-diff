@@ -595,12 +595,24 @@ def _htmldiff(old, new, comparator, include='all'):
 # tokenization phase, though.
 def _limit_spacers(tokens, max_spacers):
     limited_tokens = []
+    extra_pre_tags = []
     for token in tokens:
         if isinstance(token, SpacerToken):
             if max_spacers <= 0:
+                extra_pre_tags.extend(token.pre_tags)
+                extra_pre_tags.extend(token.post_tags)
                 continue
             max_spacers -= 1
+
+        if len(extra_pre_tags):
+            token.pre_tags = [*extra_pre_tags, *token.pre_tags]
+            extra_pre_tags.clear()
+
         limited_tokens.append(token)
+
+    if len(extra_pre_tags):
+        last = limited_tokens[-1]
+        last.post_tags = [*last.post_tags, *extra_pre_tags]
 
     return limited_tokens
 
