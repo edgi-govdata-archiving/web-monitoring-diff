@@ -619,8 +619,9 @@ def _count_changes(opcodes):
 # lxml.html.diff. We plan to change it significantly.
 
 def expand_tokens(tokens, equal=False):
-    """Given a list of tokens, return a generator of the chunks of
-    text for the data in the tokens.
+    """
+    Given a list of tokens, return a generator of the chunks of text for the
+    data in the tokens.
     """
     for token in tokens:
         for pre in token.pre_tags:
@@ -635,7 +636,8 @@ def expand_tokens(tokens, equal=False):
 
 
 class DiffToken(str):
-    """ Represents a diffable token, generally a word that is displayed to
+    """
+    Represents a diffable token, generally a word that is displayed to
     the user.  Opening tags are attached to this token when they are
     adjacent (pre_tags) and closing tags that follow the word
     (post_tags).  Some exceptions occur when there are empty tags
@@ -645,7 +647,8 @@ class DiffToken(str):
     We also keep track of whether the word was originally followed by
     whitespace, even though we do not want to treat the word as
     equivalent to a similar word that does not have a trailing
-    space."""
+    space.
+    """
 
     # When this is true, the token will be eliminated from the
     # displayed diff if no change has occurred:
@@ -677,10 +680,11 @@ class DiffToken(str):
 
 
 class tag_token(DiffToken):
-
-    """ Represents a token that is actually a tag.  Currently this is just
+    """
+    Represents a token that is actually a tag.  Currently this is just
     the <img> tag, which takes up visible space just like a word but
-    is only represented in a document by a tag.  """
+    is only represented in a document by a tag.
+    """
 
     def __new__(cls, tag, data, html_repr, comparator, pre_tags=None,
                 post_tags=None, trailing_whitespace=""):
@@ -708,8 +712,10 @@ class tag_token(DiffToken):
 
 
 class href_token(DiffToken):
-    """ Represents the href in an anchor tag.  Unlike other words, we only
-    show the href when it changes.  """
+    """
+    Represents the href in an anchor tag.  Unlike other words, we only
+    show the href when it changes.
+    """
 
     hide_when_equal = True
 
@@ -851,12 +857,14 @@ def fixup_chunks(chunks, comparator):
 
 
 def flatten_el(el, include_hrefs, skip_tag=False):
-    """ Takes an lxml element el, and generates all the text chunks for
+    """
+    Takes an lxml element el, and generates all the text chunks for
     that tag.  Each start tag is a chunk, each word is a chunk, and each
     end tag is a chunk.
 
     If skip_tag is true, then the outermost container tag is
-    not returned (just its contents)."""
+    not returned (just its contents).
+    """
     if not skip_tag:
         if el.tag == 'img':
             src_array = []
@@ -899,8 +907,10 @@ def flatten_el(el, include_hrefs, skip_tag=False):
 split_words_re = re.compile(r'\S+(?:\s+|$)', re.U)
 
 def split_words(text):
-    """ Splits some text into words. Includes trailing whitespace
-    on each word when appropriate.  """
+    """
+    Splits some text into words. Includes trailing whitespace on each word when
+    appropriate.
+    """
     if not text or not text.strip():
         return []
 
@@ -918,8 +928,10 @@ def start_tag(el):
                          for name, value in el.attrib.items()]))
 
 def end_tag(el):
-    """ The text representation of an end tag for a tag.  Includes
-    trailing whitespace when appropriate.  """
+    """
+    The text representation of an end tag for a tag.  Includes trailing
+    whitespace when appropriate.
+    """
     if el.tail and start_whitespace_re.search(el.tail):
         extra = ' '
     else:
