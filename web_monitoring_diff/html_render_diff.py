@@ -1905,7 +1905,7 @@ def get_diff_styles():
         script {{display: none !important;}}'''
 
 
-UPDATE_CONTRAST_SCRIPT = """
+UPDATE_CONTRAST_SCRIPT = r"""
     (function () {
         // Update the text color of change elements to ensure a readable level
         // of contrast with the background color
