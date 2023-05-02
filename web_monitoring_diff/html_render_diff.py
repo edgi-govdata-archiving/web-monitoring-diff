@@ -554,8 +554,8 @@ def _htmldiff(old, new, comparator, include='all'):
     """
     old_tokens = tokenize(old, comparator)
     new_tokens = tokenize(new, comparator)
-    old_tokens = _limit_spacers(_insert_spacers(old_tokens), MAX_SPACERS)
-    new_tokens = _limit_spacers(_insert_spacers(new_tokens), MAX_SPACERS)
+    old_tokens = _insert_spacers(old_tokens, MAX_SPACERS)
+    new_tokens = _insert_spacers(new_tokens, MAX_SPACERS)
     # result = htmldiff_tokens(old_tokens, new_tokens)
     # result = diff_tokens(old_tokens, new_tokens) #, include='delete')
     logger.debug('CUSTOMIZED!')
@@ -584,35 +584,6 @@ def _htmldiff(old, new, comparator, include='all'):
         diffs['deletions'] = render_diff('deletions')
 
     return metadata, diffs
-
-
-# FIXME: this is utterly ridiculous -- the crazy spacer token solution we came
-# up with can add so much extra stuff to some kinds of pages that
-# SequenceMatcher chokes on it. This strips out excess spacers. We should
-# really re-examine the whole spacer token concept now that we control the
-# tokenization phase, though.
-def _limit_spacers(tokens, max_spacers):
-    limited_tokens = []
-    extra_pre_tags = []
-    for token in tokens:
-        if isinstance(token, SpacerToken):
-            if max_spacers <= 0:
-                extra_pre_tags.extend(token.pre_tags)
-                extra_pre_tags.extend(token.post_tags)
-                continue
-            max_spacers -= 1
-
-        if len(extra_pre_tags):
-            token.pre_tags = [*extra_pre_tags, *token.pre_tags]
-            extra_pre_tags.clear()
-
-        limited_tokens.append(token)
-
-    if len(extra_pre_tags):
-        last = limited_tokens[-1]
-        last.post_tags = [*last.post_tags, *extra_pre_tags]
-
-    return limited_tokens
 
 
 def _count_changes(opcodes):
@@ -1052,12 +1023,28 @@ class ImgTagToken(tag_token):
 # differ, and we've since changed the internals a lot. The spacers have never
 # worked especially well, and we may be better off without them. This needs
 # *lots* of testing, though.
-def _insert_spacers(tokens):
+def _insert_spacers(tokens, max = MAX_SPACERS):
+    if max < 1:
+        return tokens
+
     SPACER_STRING = '\nSPACER'
+
+    def allocate_spacer(count = 1):
+        nonlocal max
+        if max < count:
+            return False
+        else:
+            max -= count
+            return True
 
     result = []
     # for token in tokens:
     for token_index, token in enumerate(tokens):
+        # Bail out early if we've run out of spacers.
+        if max < 1:
+            result.append(token)
+            continue
+
         # if str(token).lower().startswith('impacts'):
         # if str(token).lower().startswith('although'):
         #     logger.debug(f'SPECIAL TAG!\n  pre: {token.pre_tags}\n  token: "{token}"\n  post: {token.post_tags}')
@@ -1073,6 +1060,7 @@ def _insert_spacers(tokens):
         try_splitting = len(token.pre_tags) > 0
         split_start = 0
         while try_splitting:
+            try_splitting = False
             for tag_index, tag in enumerate(token.pre_tags[split_start:]):
                 split_here = False
                 for name in SEPARATABLE_TAGS:
@@ -1080,22 +1068,21 @@ def _insert_spacers(tokens):
                         split_here = True
                         break
                 if split_here:
-                    # new_token = SpacerToken(SPACER_STRING, pre_tags=token.pre_tags[0:tag_index + 1])
-                    # token.pre_tags = token.pre_tags[tag_index + 1:]
+                    if allocate_spacer(3):
+                        # new_token = SpacerToken(SPACER_STRING, pre_tags=token.pre_tags[0:tag_index + 1])
+                        # token.pre_tags = token.pre_tags[tag_index + 1:]
 
-                    new_token = SpacerToken(SPACER_STRING, pre_tags=token.pre_tags[0:tag_index + split_start])
-                    token.pre_tags = token.pre_tags[tag_index + split_start:]
+                        new_token = SpacerToken(SPACER_STRING, pre_tags=token.pre_tags[0:tag_index + split_start])
+                        token.pre_tags = token.pre_tags[tag_index + split_start:]
 
-                    # tokens.insert(token_index + 1, token)
-                    # token = new_token
-                    result.append(new_token)
-                    result.append(SpacerToken(SPACER_STRING))
-                    result.append(SpacerToken(SPACER_STRING))
-                    try_splitting = len(token.pre_tags) > 1
-                    split_start = 1
+                        # tokens.insert(token_index + 1, token)
+                        # token = new_token
+                        result.append(new_token)
+                        result.append(SpacerToken(SPACER_STRING))
+                        result.append(SpacerToken(SPACER_STRING))
+                        try_splitting = len(token.pre_tags) > 1
+                        split_start = 1
                     break
-                else:
-                    try_splitting = False
 
 
         # This is a CRITICAL scenario, but should probably be generalized and
@@ -1110,7 +1097,7 @@ def _insert_spacers(tokens):
         for index, tag in enumerate(token.pre_tags):
             if tag.startswith('<a') and len(token.pre_tags) > index + 1:
                 next_tag = token.pre_tags[index + 1]
-                if next_tag and next_tag.startswith('</a'):
+                if next_tag and next_tag.startswith('</a') and allocate_spacer():
                     result.append(SpacerToken('~EMPTY~', pre_tags=token.pre_tags[0:index], post_tags=token.pre_tags[index:]))
                     token.pre_tags = []
 
@@ -1127,7 +1114,7 @@ def _insert_spacers(tokens):
             next_token = tokens[token_index + 1]
             logger.debug(f'SPECIAL TAG!\n  pre: {next_token.pre_tags}\n  token: "{next_token}"\n  post: {next_token.post_tags}')
             for tag_index, tag in enumerate(token.post_tags):
-                if tag.startswith('</ul>'):
+                if tag.startswith('</ul>') and allocate_spacer(2):
                     new_token = SpacerToken(SPACER_STRING)
                     result.append(new_token)
                     new_token = SpacerToken(SPACER_STRING, pre_tags=token.post_tags[tag_index:])
@@ -1157,20 +1144,21 @@ def _insert_spacers(tokens):
                     split_here = True
                     break
             if split_here:
-                # new_token = SpacerToken(SPACER_STRING, pre_tags=customized.post_tags[tag_index + 1:])
-                # customized.post_tags = customized.post_tags[0:tag_index + 1]
+                if allocate_spacer(3):
+                    # new_token = SpacerToken(SPACER_STRING, pre_tags=customized.post_tags[tag_index + 1:])
+                    # customized.post_tags = customized.post_tags[0:tag_index + 1]
 
-                # new_token = SpacerToken(SPACER_STRING, pre_tags=customized.post_tags[tag_index:])
-                # customized.post_tags = customized.post_tags[0:tag_index]
+                    # new_token = SpacerToken(SPACER_STRING, pre_tags=customized.post_tags[tag_index:])
+                    # customized.post_tags = customized.post_tags[0:tag_index]
 
-                new_token = SpacerToken(SPACER_STRING, post_tags=token.post_tags[tag_index:])
-                token.post_tags = token.post_tags[0:tag_index]
+                    new_token = SpacerToken(SPACER_STRING, post_tags=token.post_tags[tag_index:])
+                    token.post_tags = token.post_tags[0:tag_index]
 
-                # tokens.insert(token_index + 1, token)
-                # token = new_token
-                result.append(new_token)
-                result.append(SpacerToken(SPACER_STRING))
-                result.append(SpacerToken(SPACER_STRING))
+                    # tokens.insert(token_index + 1, token)
+                    # token = new_token
+                    result.append(new_token)
+                    result.append(SpacerToken(SPACER_STRING))
+                    result.append(SpacerToken(SPACER_STRING))
                 break
 
     return result
