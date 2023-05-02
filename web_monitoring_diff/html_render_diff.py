@@ -850,6 +850,19 @@ def fixup_chunks(chunks, comparator):
             tag_accum.append(chunk[1])
 
         elif current_token == TokenType.end_tag:
+            # Ensure any closing tags get added to the previous token as
+            # `post_tags`, rather than the next token as `pre_tags`. This makes
+            # placing the end of elements in the right place when re-assembling
+            # the final diff from added/removed tokens easier to do.
+            #
+            # That is, given HTML like:
+            #
+            #    <p><a>Hello!</a></p><div>…there.</div>
+            #
+            # We want output like:
+            #
+            #    [('Hello!', pre=['<p>','<a>'], post=['</a>','</p>']),
+            #     ('…there.', pre=[<div>'], post=['</div>'])]
             if tag_accum:
                 tag_accum.append(chunk[1])
             else:
@@ -1033,54 +1046,6 @@ class ImgTagToken(tag_token):
 
 def _customize_tokens(tokens):
     SPACER_STRING = '\nSPACER'
-
-    # Balance out pre- and post-tags so that a token of text is surrounded by
-    # the opening and closing tags of the element it's in. For example:
-    #
-    #    <p><a>Hello!</a></p><div>…there.</div>
-    #
-    # Currently parses as:
-    #    [('Hello!', pre=['<p>','<a>'], post=[]),
-    #     ('…there.', pre=['</a>','</p>','<div>'], post=['</div>'])]
-    #    (Note the '</div>' post tag is only present at the end of the doc)
-    #
-    # But this attempts make it more like:
-    #
-    #    [('Hello!', pre=['<p>','<a>'], post=['</a>','</p>']),
-    #     ('…there.', pre=[<div>'], post=['</div>'])]
-    #
-    # TODO: when we get around to also forking the parse/tokenize part of this
-    # diff, do this as part of the original tokenization instead.
-    for token_index, token in enumerate(tokens):
-        # logger.debug(f'Handling token {token_index}: {token}')
-        if token_index == 0:
-            continue
-        previous = tokens[token_index - 1]
-        previous_post_complete = False
-        for post_index, tag in enumerate(previous.post_tags):
-            if not tag.startswith('</'):
-                # TODO: should we attempt to fill pure-structure tags here with
-                # spacers? e.g. should we take the "<p><em></em></p>" here and
-                # wrap a spacer token in it instead of moving to "next-text's"
-                # pre_tags? "text</p><p><em></em></p><p>next-text"
-                token.pre_tags = previous.post_tags[post_index:] + token.pre_tags
-                previous.post_tags = previous.post_tags[:post_index]
-                previous_post_complete = True
-                break
-
-        if not previous_post_complete:
-            for pre_index, tag in enumerate(token.pre_tags):
-                if not tag.startswith('</'):
-                    if pre_index > 0:
-                        previous.post_tags.extend(token.pre_tags[:pre_index])
-                        token.pre_tags = token.pre_tags[pre_index:]
-                    break
-            else:
-                previous.post_tags.extend(token.pre_tags)
-                token.pre_tags = []
-
-
-        # logger.debug(f'  Result...\n    pre: {token.pre_tags}\n    token: "{token}"\n    post: {token.post_tags}')
 
     result = []
     # for token in tokens:
