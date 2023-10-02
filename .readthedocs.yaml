@@ -20,7 +20,7 @@ python:
   install:
     # Install first to make sure the --no-binary option is used for html5-parser/lxml.
     # (The option is not preserved when installing from the wayback package definition.)
-    # - requirements: "requirements.txt"
+    - requirements: "requirements.txt"
     - method: pip
       path: "."
       extra_requirements:
