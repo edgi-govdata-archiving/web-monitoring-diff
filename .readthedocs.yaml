@@ -15,17 +15,15 @@ build:
     - libssl-dev
     - openssl
     - libcurl4-openssl-dev
+  jobs:
+    pre_install:
+      # Use a pre-install step so we can specify the `--no-binary` option, which is
+      # not possible a pip entry in the `python.install` section of this config file.
+      - pip install '.[server,docs]' --no-binary lxml
 
 python:
   install:
-    # Install first to make sure the --no-binary option is used for html5-parser/lxml.
-    # (The option is not preserved when installing from the wayback package definition.)
-    - requirements: "requirements.txt"
-    - method: pip
-      path: "."
-      extra_requirements:
-        - server
-        - docs
+    # Also add experimental features.
     - requirements: "requirements-experimental.txt"
 
 sphinx:
