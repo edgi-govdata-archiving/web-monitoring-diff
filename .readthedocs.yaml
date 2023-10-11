@@ -16,15 +16,13 @@ build:
     - openssl
     - libcurl4-openssl-dev
   jobs:
-    pre_install:
-      # Use a pre-install step so we can specify the `--no-binary` option, which is
-      # not possible a pip entry in the `python.install` section of this config file.
-      - pip install '.[server,docs]' --no-binary lxml
-
-python:
-  install:
-    # Also add experimental features.
-    - requirements: "requirements-experimental.txt"
+    post_install:
+      # Use a post-install step so we can specify the `--no-binary` option, which is not
+      # possible in a pip entry in the `python.install` section of this config file.
+      - python -m pip install '.[server,docs]' --no-binary lxml
+      # Experimental dependencies are not supported in standard package metadata, so we
+      # need to pip install them directly.
+      - python -m pip install -r requirements-experimental.txt
 
 sphinx:
   configuration: docs/source/conf.py
