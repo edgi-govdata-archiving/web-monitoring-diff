@@ -15,18 +15,14 @@ build:
     - libssl-dev
     - openssl
     - libcurl4-openssl-dev
-
-python:
-  install:
-    # Install first to make sure the --no-binary option is used for html5-parser/lxml.
-    # (The option is not preserved when installing from the wayback package definition.)
-    - requirements: "requirements.txt"
-    - method: pip
-      path: "."
-      extra_requirements:
-        - server
-        - docs
-    - requirements: "requirements-experimental.txt"
+  jobs:
+    post_install:
+      # Use job hooks so we can specify the `--no-binary` option, which is not
+      # possible in the `python.install` section of this config file.
+      - python -m pip install '.[server,docs]' --no-binary lxml --upgrade --upgrade-strategy only-if-needed
+      # Experimental dependencies are not supported in standard package
+      # metadata, so we need to pip install them directly.
+      - python -m pip install --exists-action=w -r requirements-experimental.txt
 
 sphinx:
   configuration: docs/source/conf.py
