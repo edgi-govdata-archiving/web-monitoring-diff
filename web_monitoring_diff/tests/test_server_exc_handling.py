@@ -207,14 +207,19 @@ class DiffingServerExceptionHandlingTest(DiffingServerTestCase):
             df.caller(mock_diffing_method, response, response)
 
     def test_a_is_404(self):
-        response = self.fetch('/html_token?format=json&include=all'
-                              '&a=http://httpstat.us/404'
-                              '&b=https://example.org')
-        # The error is upstream, but the message should indicate it was a 404.
-        self.assertEqual(response.code, 502)
-        assert '404' in json.loads(response.body)['error']
-        self.assertFalse(response.headers.get('Etag'))
-        self.json_check(response)
+        mock = MockAsyncHttpClient()
+        with patch.object(df, 'get_http_client', return_value=mock):
+            mock.respond_to(r'/404', code=404, body='Error 404')
+            mock.respond_to(r'/success')
+
+            response = self.fetch('/html_token?format=json&include=all'
+                                  '&a=http://httpstat.us/404'
+                                  '&b=https://example.org/success')
+            # The error is upstream, but the message should indicate it was a 404.
+            self.assertEqual(response.code, 502)
+            assert '404' in json.loads(response.body)['error']
+            self.assertFalse(response.headers.get('Etag'))
+            self.json_check(response)
 
     def test_accepts_errors_from_web_archives(self):
         """
