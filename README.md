@@ -66,7 +66,7 @@ This package was originally built as a component of EDGI’s [Web Monitoring Pro
 
     **For local development,** make sure to do an editable installation instead. See [the “contributing” section](#contributing) below for more.
 
-4. (Optional) Install experimental diffs. Some additional types of diffs are considered “experimental” — they may be new and still have lots of edge cases, may not be publicly available via PyPI or another package server, or may have any number of other issues. To install them, run:
+3. (Optional) Install experimental diffs. Some additional types of diffs are considered “experimental” — they may be new and still have lots of edge cases, may not be publicly available via PyPI or another package server, or may have any number of other issues. To install them, run:
 
     ```sh
     pip install -r requirements-experimental.txt
