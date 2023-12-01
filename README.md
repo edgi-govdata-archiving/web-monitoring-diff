@@ -45,9 +45,17 @@ This package was originally built as a component of EDGI’s [Web Monitoring Pro
 
     The `--no-binary` flag ensures that pip downloads and builds a fresh copy of `lxml` (one of web-monitoring-diff’s dependencies) rather than using a pre-built version. It’s slower to install, but is required for all the dependencies to work correctly together. **If you publish a package that depends on web-monitoring-diff, your package will need to be installed with this flag, too.**
 
-    **On MacOS,** you may need additional configuration to get `pycurl` to use the Homebrew `openssl`. Try the following:
+    **On MacOS,** you may need additional configuration to get `pycurl` to use the Homebrew `openssl`. Try one of the following:
 
     ```sh
+    # Homebrew install locations vary by architechture.
+    # For Apple silicon/ARM:
+    PYCURL_SSL_LIBRARY=openssl \
+      LDFLAGS="-L/opt/homebrew/opt/openssl/lib" \
+      CPPFLAGS="-I/opt/homebrew/opt/openssl/include" \
+      pip install web-monitoring-diff --no-binary lxml --no-cache-dir
+
+    # Or for Intel:
     PYCURL_SSL_LIBRARY=openssl \
       LDFLAGS="-L/usr/local/opt/openssl/lib" \
       CPPFLAGS="-I/usr/local/opt/openssl/include" \
@@ -58,7 +66,7 @@ This package was originally built as a component of EDGI’s [Web Monitoring Pro
 
     **For local development,** make sure to do an editable installation instead. See [the “contributing” section](#contributing) below for more.
 
-3. (Optional) Install experimental diffs. Some additional types of diffs are considered “experimental” — they may be new and still have lots of edge cases, may not be publicly available via PyPI or another package server, or may have any number of other issues. To install them, run:
+4. (Optional) Install experimental diffs. Some additional types of diffs are considered “experimental” — they may be new and still have lots of edge cases, may not be publicly available via PyPI or another package server, or may have any number of other issues. To install them, run:
 
     ```sh
     pip install -r requirements-experimental.txt
