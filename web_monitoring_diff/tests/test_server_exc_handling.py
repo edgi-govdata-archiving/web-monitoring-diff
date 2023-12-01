@@ -20,6 +20,71 @@ import tornado.web
 from io import BytesIO
 
 
+# TODO: we may want to extract this to a support module
+class MockAsyncHttpClient(AsyncHTTPClient):
+    """
+    A mock Tornado AsyncHTTPClient. Use it to set fake responses and track
+    requests made with an AsyncHTTPClient instance.
+    """
+
+    def __init__(self):
+        self.requests = {}
+        self.stub_responses = []
+
+    def respond_to(self, matcher, code=200, body='', headers={}, **kwargs):
+        """
+        Set up a fake HTTP response. If a request is made and no fake response
+        set up with `respond_to()` matches it, an error will be raised.
+
+        Parameters
+        ----------
+        matcher : callable or string
+            Defines whether this response data should be used for a given
+            request. If callable, it will be called with the Tornado Request
+            object and should return `True` if the response should be used. If
+            a string, it will be used as a regular expression to match the
+            request URL.
+        code : int, default: 200
+            The HTTP response code to response with.
+        body : string, optional
+            The response body to send back.
+        headers : dict, optional
+            Any headers to use for the response.
+        **kwargs : any, optional
+            Additional keyword args to pass to the Tornado Response.
+            Reference: http://www.tornadoweb.org/en/stable/httpclient.html#tornado.httpclient.HTTPResponse
+        """
+        if isinstance(matcher, str):
+            regex = re.compile(matcher)
+            matcher = lambda request: regex.search(request.url) is not None
+
+        if 'Content-Type' not in headers and 'content-type' not in headers:
+            headers['Content-Type'] = 'text/plain'
+
+        self.stub_responses.append({
+            'matcher': matcher,
+            'code': code,
+            'body': body,
+            'headers': headers,
+            'extra': kwargs
+        })
+
+    def fetch_impl(self, request, callback):
+        stub = self._find_stub(request)
+        buffer = BytesIO(utf8(stub['body']))
+        headers = HTTPHeaders(stub['headers'])
+        response = HTTPResponse(request, stub['code'], buffer=buffer,
+                                headers=headers, **stub['extra'])
+        self.requests[request.url] = request
+        callback(response)
+
+    def _find_stub(self, request):
+        for stub in self.stub_responses:
+            if stub['matcher'](request):
+                return stub
+        raise ValueError(f'No response stub for {request.url}')
+
+
 def patch_http_client(**kwargs):
     """
     Create HTTP clients in the diffing server with the specified parameters
@@ -29,6 +94,26 @@ def patch_http_client(**kwargs):
         return tornado.httpclient.AsyncHTTPClient(force_instance=True,
                                                   **kwargs)
     return patch.object(df, 'get_http_client', get_client)
+
+
+def mock_http_client(test_func):
+    """
+    Replace the diffing server's HTTP client with an instance of
+    ``MockAsyncHttpClient``. On the resulting mock, call `respond_to()` to set
+    responses for various URLs:
+
+    >>> @mock_http_client
+    >>> def test_something(client):
+    >>>    client.respond_to(r'/a', body='hello')
+    >>>    client.respond_to(r'/b', code=500, body='goodbye')
+    >>>    self.fetch('/html_source_dmp?a=http://ex.com/a&b=http://ex.com/b')
+    """
+    def new_test_func(*args):
+        mock = MockAsyncHttpClient()
+        with patch.object(df, 'get_http_client', return_value=mock):
+            return test_func(*args, mock)
+
+    return new_test_func
 
 
 class DiffingServerTestCase(AsyncHTTPTestCase):
@@ -100,28 +185,27 @@ class DiffingServerHealthCheckHandlingTest(DiffingServerTestCase):
 
 class DiffingServerFetchTest(DiffingServerTestCase):
 
-    def test_pass_headers(self):
-        mock = MockAsyncHttpClient()
-        with patch.object(df, 'get_http_client', return_value=mock):
-            mock.respond_to(r'/a$')
-            mock.respond_to(r'/b$')
+    @mock_http_client
+    def test_pass_headers(self, client):
+        client.respond_to(r'/a$')
+        client.respond_to(r'/b$')
 
-            self.fetch('/html_source_dmp?'
-                       'pass_headers=Authorization,%20User-Agent&'
-                       'a=https://example.org/a&b=https://example.org/b',
-                       headers={'User-Agent': 'Some Agent',
-                                'Authorization': 'Bearer xyz',
-                                'Accept': 'application/json'})
+        self.fetch('/html_source_dmp?'
+                   'pass_headers=Authorization,%20User-Agent&'
+                   'a=https://example.org/a&b=https://example.org/b',
+                   headers={'User-Agent': 'Some Agent',
+                            'Authorization': 'Bearer xyz',
+                            'Accept': 'application/json'})
 
-            a_headers = mock.requests['https://example.org/a'].headers
-            assert a_headers.get('User-Agent') == 'Some Agent'
-            assert a_headers.get('Authorization') == 'Bearer xyz'
-            assert a_headers.get('Accept') != 'application/json'
+        a_headers = client.requests['https://example.org/a'].headers
+        assert a_headers.get('User-Agent') == 'Some Agent'
+        assert a_headers.get('Authorization') == 'Bearer xyz'
+        assert a_headers.get('Accept') != 'application/json'
 
-            b_headers = mock.requests['https://example.org/b'].headers
-            assert b_headers.get('User-Agent') == 'Some Agent'
-            assert b_headers.get('Authorization') == 'Bearer xyz'
-            assert b_headers.get('Accept') != 'application/json'
+        b_headers = client.requests['https://example.org/b'].headers
+        assert b_headers.get('User-Agent') == 'Some Agent'
+        assert b_headers.get('Authorization') == 'Bearer xyz'
+        assert b_headers.get('Accept') != 'application/json'
 
 
 class DiffingServerExceptionHandlingTest(DiffingServerTestCase):
@@ -206,37 +290,35 @@ class DiffingServerExceptionHandlingTest(DiffingServerTestCase):
         with self.assertRaises(KeyError):
             df.caller(mock_diffing_method, response, response)
 
-    def test_a_is_404(self):
-        mock = MockAsyncHttpClient()
-        with patch.object(df, 'get_http_client', return_value=mock):
-            mock.respond_to(r'/404', code=404, body='Error 404')
-            mock.respond_to(r'/success')
+    @mock_http_client
+    def test_a_is_404(self, client):
+        client.respond_to(r'/404', code=404, body='Error 404')
+        client.respond_to(r'/success')
 
-            response = self.fetch('/html_token?format=json&include=all'
-                                  '&a=http://httpstat.us/404'
-                                  '&b=https://example.org/success')
-            # The error is upstream, but the message should indicate it was a 404.
-            self.assertEqual(response.code, 502)
-            assert '404' in json.loads(response.body)['error']
-            self.assertFalse(response.headers.get('Etag'))
-            self.json_check(response)
+        response = self.fetch('/html_token?format=json&include=all'
+                              '&a=http://httpstat.us/404'
+                              '&b=https://example.org/success')
+        # The error is upstream, but the message should indicate it was a 404.
+        self.assertEqual(response.code, 502)
+        assert '404' in json.loads(response.body)['error']
+        self.assertFalse(response.headers.get('Etag'))
+        self.json_check(response)
 
-    def test_accepts_errors_from_web_archives(self):
+    @mock_http_client
+    def test_accepts_errors_from_web_archives(self, client):
         """
         If a page has HTTP status != 2xx but comes from a web archive,
         we proceed with diffing.
         """
-        mock = MockAsyncHttpClient()
-        with patch.object(df, 'get_http_client', return_value=mock):
-            mock.respond_to(r'/error$', code=404, headers={'Memento-Datetime': 'Tue Sep 25 2018 03:38:50'})
-            mock.respond_to(r'/success$')
+        client.respond_to(r'/error$', code=404, headers={'Memento-Datetime': 'Tue Sep 25 2018 03:38:50'})
+        client.respond_to(r'/success$')
 
-            response = self.fetch('/html_token?format=json&include=all'
-                                  '&a=https://archive.org/20180925033850/http://httpstat.us/error'
-                                  '&b=https://example.org/success')
+        response = self.fetch('/html_token?format=json&include=all'
+                              '&a=https://archive.org/20180925033850/http://httpstat.us/error'
+                              '&b=https://example.org/success')
 
-            self.assertEqual(response.code, 200)
-            assert 'change_count' in json.loads(response.body)
+        self.assertEqual(response.code, 200)
+        assert 'change_count' in json.loads(response.body)
 
     @patch('web_monitoring_diff.server.server.access_control_allow_origin_header', '*')
     def test_check_cors_headers(self):
@@ -539,71 +621,6 @@ def mock_tornado_request(fixture, headers=None):
     with open(path, 'rb') as f:
         body = f.read()
         return df.MockResponse(f'file://{path}', body, headers)
-
-
-# TODO: we may want to extract this to a support module
-class MockAsyncHttpClient(AsyncHTTPClient):
-    """
-    A mock Tornado AsyncHTTPClient. Use it to set fake responses and track
-    requests made with an AsyncHTTPClient instance.
-    """
-
-    def __init__(self):
-        self.requests = {}
-        self.stub_responses = []
-
-    def respond_to(self, matcher, code=200, body='', headers={}, **kwargs):
-        """
-        Set up a fake HTTP response. If a request is made and no fake response
-        set up with `respond_to()` matches it, an error will be raised.
-
-        Parameters
-        ----------
-        matcher : callable or string
-            Defines whether this response data should be used for a given
-            request. If callable, it will be called with the Tornado Request
-            object and should return `True` if the response should be used. If
-            a string, it will be used as a regular expression to match the
-            request URL.
-        code : int, default: 200
-            The HTTP response code to response with.
-        body : string, optional
-            The response body to send back.
-        headers : dict, optional
-            Any headers to use for the response.
-        **kwargs : any, optional
-            Additional keyword args to pass to the Tornado Response.
-            Reference: http://www.tornadoweb.org/en/stable/httpclient.html#tornado.httpclient.HTTPResponse
-        """
-        if isinstance(matcher, str):
-            regex = re.compile(matcher)
-            matcher = lambda request: regex.search(request.url) is not None
-
-        if 'Content-Type' not in headers and 'content-type' not in headers:
-            headers['Content-Type'] = 'text/plain'
-
-        self.stub_responses.append({
-            'matcher': matcher,
-            'code': code,
-            'body': body,
-            'headers': headers,
-            'extra': kwargs
-        })
-
-    def fetch_impl(self, request, callback):
-        stub = self._find_stub(request)
-        buffer = BytesIO(utf8(stub['body']))
-        headers = HTTPHeaders(stub['headers'])
-        response = HTTPResponse(request, stub['code'], buffer=buffer,
-                                headers=headers, **stub['extra'])
-        self.requests[request.url] = request
-        callback(response)
-
-    def _find_stub(self, request):
-        for stub in self.stub_responses:
-            if stub['matcher'](request):
-                return stub
-        raise ValueError(f'No response stub for {request.url}')
 
 
 class MockResponderHeadersTest(unittest.TestCase):
