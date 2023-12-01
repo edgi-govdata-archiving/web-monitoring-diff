@@ -20,78 +20,6 @@ import tornado.web
 from io import BytesIO
 
 
-# TODO: we may want to extract this to a support module
-class MockAsyncHttpClient(AsyncHTTPClient):
-    """
-    A mock Tornado AsyncHTTPClient. Use it to set fake responses and track
-    requests made with an AsyncHTTPClient instance.
-    """
-
-    def __init__(self):
-        self.requests = {}
-        self.stub_responses = []
-
-    def respond_to(self, matcher, code=200, body='', headers={}, error=None, **kwargs):
-        """
-        Set up a fake HTTP response. If a request is made and no fake response
-        set up with `respond_to()` matches it, an error will be raised.
-
-        Parameters
-        ----------
-        matcher : callable or string
-            Defines whether this response data should be used for a given
-            request. If callable, it will be called with the Tornado Request
-            object and should return `True` if the response should be used. If
-            a string, it will be used as a regular expression to match the
-            request URL.
-        code : int, default: 200
-            The HTTP response code to response with.
-        body : string, optional
-            The response body to send back.
-        headers : dict, optional
-            Any headers to use for the response.
-        error : Exception, optional
-            If set, raise an exception instead of returning a mock response.
-        **kwargs : any, optional
-            Additional keyword args to pass to the Tornado Response.
-            Reference: http://www.tornadoweb.org/en/stable/httpclient.html#tornado.httpclient.HTTPResponse
-        """
-        if isinstance(matcher, str):
-            regex = re.compile(matcher)
-            matcher = lambda request: regex.search(request.url) is not None
-
-        if 'Content-Type' not in headers and 'content-type' not in headers:
-            headers['Content-Type'] = 'text/plain'
-
-        self.stub_responses.append({
-            'matcher': matcher,
-            'code': code,
-            'body': body,
-            'headers': headers,
-            'extra': kwargs,
-            'error': error
-        })
-
-    def fetch_impl(self, request, callback):
-        stub = self._find_stub(request)
-        if stub['error']:
-            callback(HTTPResponse(request, 600, error=stub['error']))
-            return
-
-        buffer = BytesIO(utf8(stub['body']))
-        headers = HTTPHeaders(stub['headers'])
-        response = HTTPResponse(request, stub['code'], buffer=buffer,
-                                headers=headers, **stub['extra'])
-        self.requests[request.url] = request
-        callback(response)
-
-    def _find_stub(self, request):
-        for stub in self.stub_responses:
-            if stub['matcher'](request):
-                return stub
-        raise ValueError(f'No response stub for {request.url}')
-
-
 def patch_http_client(**kwargs):
     """
     Create HTTP clients in the diffing server with the specified parameters
@@ -645,6 +573,78 @@ def mock_tornado_request(fixture, headers=None):
     with open(path, 'rb') as f:
         body = f.read()
         return df.MockResponse(f'file://{path}', body, headers)
+
+
+# TODO: we may want to extract this to a support module
+class MockAsyncHttpClient(AsyncHTTPClient):
+    """
+    A mock Tornado AsyncHTTPClient. Use it to set fake responses and track
+    requests made with an AsyncHTTPClient instance.
+    """
+
+    def __init__(self):
+        self.requests = {}
+        self.stub_responses = []
+
+    def respond_to(self, matcher, code=200, body='', headers={}, error=None, **kwargs):
+        """
+        Set up a fake HTTP response. If a request is made and no fake response
+        set up with `respond_to()` matches it, an error will be raised.
+
+        Parameters
+        ----------
+        matcher : callable or string
+            Defines whether this response data should be used for a given
+            request. If callable, it will be called with the Tornado Request
+            object and should return `True` if the response should be used. If
+            a string, it will be used as a regular expression to match the
+            request URL.
+        code : int, default: 200
+            The HTTP response code to response with.
+        body : string, optional
+            The response body to send back.
+        headers : dict, optional
+            Any headers to use for the response.
+        error : Exception, optional
+            If set, raise an exception instead of returning a mock response.
+        **kwargs : any, optional
+            Additional keyword args to pass to the Tornado Response.
+            Reference: http://www.tornadoweb.org/en/stable/httpclient.html#tornado.httpclient.HTTPResponse
+        """
+        if isinstance(matcher, str):
+            regex = re.compile(matcher)
+            matcher = lambda request: regex.search(request.url) is not None
+
+        if 'Content-Type' not in headers and 'content-type' not in headers:
+            headers['Content-Type'] = 'text/plain'
+
+        self.stub_responses.append({
+            'matcher': matcher,
+            'code': code,
+            'body': body,
+            'headers': headers,
+            'extra': kwargs,
+            'error': error
+        })
+
+    def fetch_impl(self, request, callback):
+        stub = self._find_stub(request)
+        if stub['error']:
+            callback(HTTPResponse(request, 600, error=stub['error']))
+            return
+
+        buffer = BytesIO(utf8(stub['body']))
+        headers = HTTPHeaders(stub['headers'])
+        response = HTTPResponse(request, stub['code'], buffer=buffer,
+                                headers=headers, **stub['extra'])
+        self.requests[request.url] = request
+        callback(response)
+
+    def _find_stub(self, request):
+        for stub in self.stub_responses:
+            if stub['matcher'](request):
+                return stub
+        raise ValueError(f'No response stub for {request.url}')
 
 
 class MockResponderHeadersTest(unittest.TestCase):
