@@ -31,6 +31,26 @@ def patch_http_client(**kwargs):
     return patch.object(df, 'get_http_client', get_client)
 
 
+def mock_http_client(test_func):
+    """
+    Replace the diffing server's HTTP client with an instance of
+    ``MockAsyncHttpClient``. On the resulting mock, call `respond_to()` to set
+    responses for various URLs:
+
+    >>> @mock_http_client
+    >>> def test_something(client):
+    >>>    client.respond_to(r'/a', body='hello')
+    >>>    client.respond_to(r'/b', code=500, body='goodbye')
+    >>>    self.fetch('/html_source_dmp?a=http://ex.com/a&b=http://ex.com/b')
+    """
+    def new_test_func(*args):
+        mock = MockAsyncHttpClient()
+        with patch.object(df, 'get_http_client', return_value=mock):
+            return test_func(*args, mock)
+
+    return new_test_func
+
+
 class DiffingServerTestCase(AsyncHTTPTestCase):
 
     def get_app(self):
@@ -54,8 +74,10 @@ class DiffingServerIndexTest(DiffingServerTestCase):
 
 class DiffingServerLocalHandlingTest(DiffingServerTestCase):
 
-    def test_one_local(self):
+    @mock_http_client
+    def test_one_local(self, client):
         with tempfile.NamedTemporaryFile() as a:
+            client.respond_to(r'example.org', body='Whatever')
             response = self.fetch('/identical_bytes?'
                                   f'a=file://{a.name}&b=https://example.org')
             self.assertEqual(response.code, 200)
@@ -100,89 +122,99 @@ class DiffingServerHealthCheckHandlingTest(DiffingServerTestCase):
 
 class DiffingServerFetchTest(DiffingServerTestCase):
 
-    def test_pass_headers(self):
-        mock = MockAsyncHttpClient()
-        with patch.object(df, 'get_http_client', return_value=mock):
-            mock.respond_to(r'/a$')
-            mock.respond_to(r'/b$')
+    @mock_http_client
+    def test_pass_headers(self, client):
+        client.respond_to(r'/a$')
+        client.respond_to(r'/b$')
 
-            self.fetch('/html_source_dmp?'
-                       'pass_headers=Authorization,%20User-Agent&'
-                       'a=https://example.org/a&b=https://example.org/b',
-                       headers={'User-Agent': 'Some Agent',
-                                'Authorization': 'Bearer xyz',
-                                'Accept': 'application/json'})
+        self.fetch('/html_source_dmp?'
+                   'pass_headers=Authorization,%20User-Agent&'
+                   'a=https://example.org/a&b=https://example.org/b',
+                   headers={'User-Agent': 'Some Agent',
+                            'Authorization': 'Bearer xyz',
+                            'Accept': 'application/json'})
 
-            a_headers = mock.requests['https://example.org/a'].headers
-            assert a_headers.get('User-Agent') == 'Some Agent'
-            assert a_headers.get('Authorization') == 'Bearer xyz'
-            assert a_headers.get('Accept') != 'application/json'
+        a_headers = client.requests['https://example.org/a'].headers
+        assert a_headers.get('User-Agent') == 'Some Agent'
+        assert a_headers.get('Authorization') == 'Bearer xyz'
+        assert a_headers.get('Accept') != 'application/json'
 
-            b_headers = mock.requests['https://example.org/b'].headers
-            assert b_headers.get('User-Agent') == 'Some Agent'
-            assert b_headers.get('Authorization') == 'Bearer xyz'
-            assert b_headers.get('Accept') != 'application/json'
+        b_headers = client.requests['https://example.org/b'].headers
+        assert b_headers.get('User-Agent') == 'Some Agent'
+        assert b_headers.get('Authorization') == 'Bearer xyz'
+        assert b_headers.get('Accept') != 'application/json'
 
 
 class DiffingServerExceptionHandlingTest(DiffingServerTestCase):
 
-    def test_local_file_disallowed_in_production(self):
-        original = os.environ.get('WEB_MONITORING_APP_ENV')
-        os.environ['WEB_MONITORING_APP_ENV'] = 'production'
-        try:
-            with tempfile.NamedTemporaryFile() as a:
-                response = self.fetch('/identical_bytes?'
-                                      f'a=file://{a.name}&b=https://example.org')
-                self.assertEqual(response.code, 403)
-        finally:
-            if original is None:
-                del os.environ['WEB_MONITORING_APP_ENV']
-            else:
-                os.environ['WEB_MONITORING_APP_ENV'] = original
+    @patch.dict(os.environ, {'WEB_MONITORING_APP_ENV': 'production'})
+    @mock_http_client
+    def test_local_file_disallowed_in_production(self, client):
+        client.respond_to(r'example\.org', body='Whatever')
+        with tempfile.NamedTemporaryFile() as a:
+            response = self.fetch('/identical_bytes?'
+                                  f'a=file://{a.name}&b=https://example.org')
+            self.assertEqual(response.code, 403)
 
-    def test_invalid_url_a_format(self):
+    @mock_http_client
+    def test_invalid_url_a_format(self, client):
+        client.respond_to(r'example\.org', body='Whatever')
         response = self.fetch('/html_token?format=json&include=all&'
                               'a=example.org&b=https://example.org')
         self.json_check(response)
         self.assertEqual(response.code, 400)
         self.assertFalse(response.headers.get('Etag'))
 
-    def test_invalid_url_b_format(self):
+    @mock_http_client
+    def test_invalid_url_b_format(self, client):
+        client.respond_to(r'example\.org', body='Whatever')
         response = self.fetch('/html_token?format=json&include=all&'
                               'a=https://example.org&b=example.org')
         self.json_check(response)
         self.assertEqual(response.code, 400)
         self.assertFalse(response.headers.get('Etag'))
 
-    def test_invalid_diffing_method(self):
+    @mock_http_client
+    def test_invalid_diffing_method(self, client):
+        client.respond_to(r'example\.org', body='Whatever')
         response = self.fetch('/non_existing?format=json&include=all&'
                               'a=example.org&b=https://example.org')
         self.json_check(response)
         self.assertEqual(response.code, 404)
         self.assertFalse(response.headers.get('Etag'))
 
-    def test_missing_url_a(self):
+    @mock_http_client
+    def test_missing_url_a(self, client):
+        client.respond_to(r'example\.org', body='Whatever')
         response = self.fetch('/html_token?format=json&include=all&'
                               'b=https://example.org')
         self.json_check(response)
         self.assertEqual(response.code, 400)
         self.assertFalse(response.headers.get('Etag'))
 
-    def test_missing_url_b(self):
+    @mock_http_client
+    def test_missing_url_b(self, client):
+        client.respond_to(r'example\.org', body='Whatever')
         response = self.fetch('/html_token?format=json&include=all&'
                               'a=https://example.org')
         self.json_check(response)
         self.assertEqual(response.code, 400)
         self.assertFalse(response.headers.get('Etag'))
 
-    def test_not_reachable_url_a(self):
+    @mock_http_client
+    def test_not_reachable_url_a(self, client):
+        client.respond_to(r'/eeexample\.org', error=OSError('Connection error'))
+        client.respond_to(r'/example\.org', body='Whatever')
         response = self.fetch('/html_token?format=json&include=all&'
                               'a=https://eeexample.org&b=https://example.org')
         self.json_check(response)
         self.assertEqual(response.code, 502)
         self.assertFalse(response.headers.get('Etag'))
 
-    def test_not_reachable_url_b(self):
+    @mock_http_client
+    def test_not_reachable_url_b(self, client):
+        client.respond_to(r'/eeexample\.org', error=OSError('Connection error'))
+        client.respond_to(r'/example\.org', body='Whatever')
         response = self.fetch('/html_token?format=json&include=all&'
                               'a=https://example.org&b=https://eeexample.org')
         self.json_check(response)
@@ -202,45 +234,50 @@ class DiffingServerExceptionHandlingTest(DiffingServerTestCase):
             assert response.code == 504
 
     def test_missing_params_caller_func(self):
-        response = self.fetch('http://example.org/')
+        response = df.MockResponse('http://example.org/', 'Whatever')
         with self.assertRaises(KeyError):
             df.caller(mock_diffing_method, response, response)
 
-    def test_a_is_404(self):
+    @mock_http_client
+    def test_a_is_404(self, client):
+        client.respond_to(r'/404', code=404, body='Error 404')
+        client.respond_to(r'/success')
+
         response = self.fetch('/html_token?format=json&include=all'
                               '&a=http://httpstat.us/404'
-                              '&b=https://example.org')
+                              '&b=https://example.org/success')
         # The error is upstream, but the message should indicate it was a 404.
         self.assertEqual(response.code, 502)
         assert '404' in json.loads(response.body)['error']
         self.assertFalse(response.headers.get('Etag'))
         self.json_check(response)
 
-    def test_accepts_errors_from_web_archives(self):
+    @mock_http_client
+    def test_accepts_errors_from_web_archives(self, client):
         """
         If a page has HTTP status != 2xx but comes from a web archive,
         we proceed with diffing.
         """
-        mock = MockAsyncHttpClient()
-        with patch.object(df, 'get_http_client', return_value=mock):
-            mock.respond_to(r'/error$', code=404, headers={'Memento-Datetime': 'Tue Sep 25 2018 03:38:50'})
-            mock.respond_to(r'/success$')
+        client.respond_to(r'/error$', code=404, headers={'Memento-Datetime': 'Tue Sep 25 2018 03:38:50'})
+        client.respond_to(r'/success$')
 
-            response = self.fetch('/html_token?format=json&include=all'
-                                  '&a=https://archive.org/20180925033850/http://httpstat.us/error'
-                                  '&b=https://example.org/success')
+        response = self.fetch('/html_token?format=json&include=all'
+                              '&a=https://archive.org/20180925033850/http://httpstat.us/error'
+                              '&b=https://example.org/success')
 
-            self.assertEqual(response.code, 200)
-            assert 'change_count' in json.loads(response.body)
+        self.assertEqual(response.code, 200)
+        assert 'change_count' in json.loads(response.body)
 
     @patch('web_monitoring_diff.server.server.access_control_allow_origin_header', '*')
-    def test_check_cors_headers(self):
+    @mock_http_client
+    def test_check_cors_headers(self, client):
         """
         Since we have set Access-Control-Allow-Origin: * on app init,
         the response should have a list of HTTP headers required by CORS.
         Access-Control-Allow-Origin value equals request Origin header because
         we use setting `access_control_allow_origin_header='*'`.
         """
+        client.respond_to(r'example\.org', body='Whatever')
         response = self.fetch('/html_token?format=json&include=all'
                               '&a=https://example.org&b=https://example.org',
                               headers={'Accept': 'application/json',
@@ -252,7 +289,8 @@ class DiffingServerExceptionHandlingTest(DiffingServerTestCase):
 
     @patch('web_monitoring_diff.server.server.access_control_allow_origin_header',
            'http://one.com,http://two.com,http://three.com')
-    def test_cors_origin_header(self):
+    @mock_http_client
+    def test_cors_origin_header(self, client):
         """
         The allowed origins is a list of URLs. If the request has HTTP
         header `Origin` as one of them, the response `Access-Control-Allow-Origin`
@@ -260,6 +298,7 @@ class DiffingServerExceptionHandlingTest(DiffingServerTestCase):
         at all.
         This is necessary for CORS requests with credentials to work properly.
         """
+        client.respond_to(r'example\.org', body='Whatever')
         response = self.fetch('/html_token?format=json&include=all'
                               '&a=https://example.org&b=https://example.org',
                               headers={'Accept': 'application/json',
@@ -547,7 +586,7 @@ class MockAsyncHttpClient(AsyncHTTPClient):
         self.requests = {}
         self.stub_responses = []
 
-    def respond_to(self, matcher, code=200, body='', headers={}, **kwargs):
+    def respond_to(self, matcher, code=200, body='', headers={}, error=None, **kwargs):
         """
         Set up a fake HTTP response. If a request is made and no fake response
         set up with `respond_to()` matches it, an error will be raised.
@@ -566,6 +605,8 @@ class MockAsyncHttpClient(AsyncHTTPClient):
             The response body to send back.
         headers : dict, optional
             Any headers to use for the response.
+        error : Exception, optional
+            If set, raise an exception instead of returning a mock response.
         **kwargs : any, optional
             Additional keyword args to pass to the Tornado Response.
             Reference: http://www.tornadoweb.org/en/stable/httpclient.html#tornado.httpclient.HTTPResponse
@@ -582,11 +623,16 @@ class MockAsyncHttpClient(AsyncHTTPClient):
             'code': code,
             'body': body,
             'headers': headers,
-            'extra': kwargs
+            'extra': kwargs,
+            'error': error
         })
 
     def fetch_impl(self, request, callback):
         stub = self._find_stub(request)
+        if stub['error']:
+            callback(HTTPResponse(request, 600, error=stub['error']))
+            return
+
         buffer = BytesIO(utf8(stub['body']))
         headers = HTTPHeaders(stub['headers'])
         response = HTTPResponse(request, stub['code'], buffer=buffer,
