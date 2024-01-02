@@ -2,12 +2,16 @@
 Release History
 ===============
 
-In Development
---------------
+Version 0.1.4 (2024-01-01)
+--------------------------
+
+This is a minor release that updates some of the lower-level parsing and diffing tools this package relies on:
 
 - Updates the diff-match-patch implementation we rely on for simple text diffs to `fast_diff_match_patch v2.x <https://pypi.org/project/fast-diff-match-patch/>`_. (:issue:`126`)
 
 - Fix misconfigured dependency requirements for html5-parser. This should have no user impact, since there are no releases (yet) in the version range we were accidentally allowing for. (:issue:`126`)
+
+- Support lxml v5.x. (:issue:`163`)
 
 
 Version 0.1.3 (2022-04-18)
