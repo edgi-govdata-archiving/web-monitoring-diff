@@ -5,7 +5,7 @@ Release History
 Version 0.1.6 (2025-01-24)
 --------------------------
 
-Remove stray logging statements that should not have been included in v0.1.5.
+Remove stray logging statements that should not have been included in v0.1.5. (:issue:`194`)
 
 
 Version 0.1.5 (2025-01-23)
