@@ -2,10 +2,10 @@
 Release History
 ===============
 
-In Development
---------------
+Version 0.1.6 (2025-01-24)
+--------------------------
 
-n/a
+Remove stray logging statements that should not have been included in v0.1.5.
 
 
 Version 0.1.5 (2025-01-23)

@@ -71,7 +71,6 @@ def is_not_html(text, headers=None, check_options='normal'):
         - `nosniff` uses the `Content-Type` header but does not sniff.
         - `ignore` doesn’t do any checking at all.
     """
-    print(f'#is_not_html: check_options="{check_options}", headers={headers}, text={text[:500]}')
     if headers and (check_options == 'normal' or check_options == 'nosniff'):
         content_type = headers.get('Content-Type', '').split(';', 1)[0].strip()
         if content_type and VALID_CONTENT_TYPE_PATTERN.match(content_type):
