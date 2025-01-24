@@ -5,7 +5,7 @@ Release History
 In Development
 --------------
 
-n/a
+- Treat the `binary/octet-stream` as a generic media type, just like `application/octet-stream`, when trying to determine if content is not HTML. Even though `binary/octet-stream` is not a registered IANA media type it turns out some AWS SDKs use it when uploading files to S3, so it’s somewhat common.
 
 
 Version 0.1.4 (2024-01-01)

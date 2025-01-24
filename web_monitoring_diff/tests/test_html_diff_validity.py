@@ -198,6 +198,14 @@ def test_html_diff_render_should_not_check_content_type_header_if_header_is_malf
         b_headers={'Content-Type': 'text/html'})
 
 
+def test_html_diff_render_should_not_check_content_type_header_if_header_is_generic():
+    html_diff_render(
+        '<p>Just a little HTML</p>',
+        '<p>Just some HTML</p>',
+        a_headers={'Content-Type': 'binary/octet-stream'},
+        b_headers={'Content-Type': 'application/x-download'})
+
+
 def test_html_diff_render_should_not_check_content_type_header_if_content_type_options_is_nocheck():
     html_diff_render(
         '<p>Just a little HTML</p>',
