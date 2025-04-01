@@ -8,5 +8,5 @@
 # It only exists to keep the list of dependencies in a separate file from
 # setup.py.
 coverage ~=7.2
-flake8 ~=5.0.4
+flake8 ~=7.2.0
 pytest ~=7.4.4
