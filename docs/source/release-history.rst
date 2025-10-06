@@ -2,10 +2,10 @@
 Release History
 ===============
 
-In Development
---------------
+Version 0.1.7 (2025-10-06)
+--------------------------
 
-n/a
+Support lxml v6. (:issue:`207`)
 
 
 Version 0.1.6 (2025-01-24)
