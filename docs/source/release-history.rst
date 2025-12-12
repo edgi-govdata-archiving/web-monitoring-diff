@@ -2,6 +2,12 @@
 Release History
 ===============
 
+In Development
+--------------
+
+- Fix XML prolog detection in diff server. This could occasionally have inferred character encoding in an XML document that was inaccurate. (:issue:`209`)
+
+
 Version 0.1.7 (2025-10-06)
 --------------------------
 
