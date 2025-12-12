@@ -558,9 +558,9 @@ class ExecutionPoolTestCase(DiffingServerTestCase):
         assert not mock_quit.called
 
 
-    @tornado.testing.gen_test
     @patch('web_monitoring_diff.server.server.DIFFER_PARALLELISM', 2)
     @patch('web_monitoring_diff.server.server.MAX_DIFFS_PER_WORKER', 2)
+    @tornado.testing.gen_test
     async def test_max_diffs_per_worker(self):
         # The executor is created lazily, so do one request to create it.
         response = await self.fetch_async('/html_source_dmp?format=json&'
