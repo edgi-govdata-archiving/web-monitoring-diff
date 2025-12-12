@@ -76,7 +76,7 @@ META_TAG_PATTERN = re.compile(
 # Matches an XML prolog that specifies character encoding:
 # <?xml version="1.0" encoding="ISO-8859-1"?>
 XML_PROLOG_PATTERN = re.compile(
-    b'<?xml\\s[^>]*encoding=[\'"]([^\'"]+)[\'"].*\?>',
+    b'<\\?xml\\s[^>]*encoding=[\'"]([^\'"]+)[\'"].*\\?>',
     re.IGNORECASE)
 
 MAX_BODY_SIZE = None
