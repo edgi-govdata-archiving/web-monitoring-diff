@@ -36,6 +36,7 @@ sentry_sdk.init(ignore_errors=[KeyboardInterrupt])
 sentry_sdk.integrations.logging.ignore_logger('tornado.access')
 
 DIFFER_PARALLELISM = int(os.environ.get('DIFFER_PARALLELISM', 10))
+MAX_DIFFS_PER_WORKER = max(int(os.environ.get('MAX_DIFFS_PER_WORKER', 0)), 0)
 RESTART_BROKEN_DIFFER = os.environ.get('RESTART_BROKEN_DIFFER', 'False').strip().lower() == 'true'
 
 # Map tokens in the REST API to functions in modules.
@@ -509,10 +510,19 @@ class DiffHandler(BaseHandler):
         Actually do a diff between two pieces of content, optionally retrying
         if the process pool that executes the diff breaks.
         """
-        executor = self.get_diff_executor()
+        reset = False
+        if MAX_DIFFS_PER_WORKER and self.settings.get('remaining_diffs_for_executor', 0) <= 0:
+            reset = True
+            self.settings['remaining_diffs_for_executor'] = MAX_DIFFS_PER_WORKER * DIFFER_PARALLELISM
+            print(f'REMAINING:: {self.settings["remaining_diffs_for_executor"]}')
+        executor = self.get_diff_executor(reset=reset)
+
+        # executor = self.get_diff_executor()
         loop = asyncio.get_running_loop()
         for attempt in range(tries):
             try:
+                if MAX_DIFFS_PER_WORKER:
+                    self.settings['remaining_diffs_for_executor'] -= 1
                 return await loop.run_in_executor(
                     executor, functools.partial(caller, func, a, b, **params))
             except concurrent.futures.process.BrokenProcessPool:
@@ -522,7 +532,14 @@ class DiffHandler(BaseHandler):
                     # parallel diffs haven't already done it. If it's already
                     # been reset, then we can just go and use the new one.
                     old_executor, executor = executor, self.get_diff_executor()
-                    if executor == old_executor:
+                    if (
+                        executor == old_executor or
+                        (
+                            MAX_DIFFS_PER_WORKER and
+                            self.settings.get('remaining_diffs_for_executor', 0) <= 0
+                        )
+                    ):
+                        self.settings['remaining_diffs_for_executor'] = MAX_DIFFS_PER_WORKER * DIFFER_PARALLELISM
                         executor = self.get_diff_executor(reset=True)
                 else:
                     # If we shouldn't allow the server to keep rebuilding the

@@ -558,6 +558,34 @@ class ExecutionPoolTestCase(DiffingServerTestCase):
         assert not mock_quit.called
 
 
+    @tornado.testing.gen_test
+    @patch('web_monitoring_diff.server.server.DIFFER_PARALLELISM', 2)
+    @patch('web_monitoring_diff.server.server.MAX_DIFFS_PER_WORKER', 2)
+    async def test_max_diffs_per_worker(self):
+        # The executor is created lazily, so do one request to create it.
+        response = await self.fetch_async('/html_source_dmp?format=json&'
+                                          f'a=file://{fixture_path("empty.txt")}&'
+                                          f'b=file://{fixture_path("empty.txt")}')
+        assert response.code == 200
+        original_executor = self._app.settings.get('diff_executor')
+
+        # Make more than the max number of requests before restarting the diff
+        # executor. This needs to be done in parallel so we can make sure
+        # in-progress diffs don't get lost when rebuilding the executor.
+        requests = [
+            self.fetch_async('/html_source_dmp?format=json&'
+                             f'a=file://{fixture_path("empty.txt")}&'
+                             f'b=file://{fixture_path("empty.txt")}')
+            for _i in range(4)
+        ]
+        responses = await asyncio.gather(*requests)
+        for response in responses:
+            assert response.code == 200
+
+        executor = self._app.settings.get('diff_executor')
+        assert original_executor is not executor
+
+
 def mock_diffing_method(c_body):
     return
 
