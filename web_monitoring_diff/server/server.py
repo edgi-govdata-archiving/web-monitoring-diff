@@ -514,7 +514,6 @@ class DiffHandler(BaseHandler):
         if MAX_DIFFS_PER_WORKER and self.settings.get('remaining_diffs_for_executor', 0) <= 0:
             reset = True
             self.settings['remaining_diffs_for_executor'] = MAX_DIFFS_PER_WORKER * DIFFER_PARALLELISM
-            print(f'REMAINING:: {self.settings["remaining_diffs_for_executor"]}')
         executor = self.get_diff_executor(reset=reset)
 
         # executor = self.get_diff_executor()
