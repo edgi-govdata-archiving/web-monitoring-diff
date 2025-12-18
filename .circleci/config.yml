@@ -15,9 +15,13 @@ commands:
         description: Install docs dependencies
         type: boolean
         default: false
+      chardet:
+        type: string
+        default: ""
     steps:
       - restore_cache:
           keys:
+            - cache-v4-{{ arch }}-python<< parameters.python-version >>-<< parameters.chardet >>-{{ checksum "requirements.txt" }}-{{ checksum "requirements-server.txt" }}-{{ checksum "requirements-dev.txt" }}-{{ checksum "requirements-experimental.txt" }}-{{ checksum "requirements-docs.txt" }}
             - cache-v4-{{ arch }}-python<< parameters.python-version >>-{{ checksum "requirements.txt" }}-{{ checksum "requirements-server.txt" }}-{{ checksum "requirements-dev.txt" }}-{{ checksum "requirements-experimental.txt" }}-{{ checksum "requirements-docs.txt" }}
             - cache-v4-{{ arch }}-python<< parameters.python-version >>-{{ checksum "requirements.txt" }}-{{ checksum "requirements-server.txt" }}-{{ checksum "requirements-dev.txt" }}-{{ checksum "requirements-experimental.txt" }}-
             - cache-v4-{{ arch }}-python<< parameters.python-version >>-{{ checksum "requirements.txt" }}-{{ checksum "requirements-server.txt" }}-{{ checksum "requirements-dev.txt" }}-
@@ -35,6 +39,14 @@ commands:
             pip install .[server,dev] --no-binary lxml
             pip install -r requirements-experimental.txt
 
+      - when:
+          condition: << parameters.chardet >>
+          steps:
+            - run:
+                command: |
+                  . ~/venv/bin/activate
+                  pip install << parameters.chardet >>
+
       # Docs dependencies are only compatible on Python 3.10+, so only install
       # them on demand.
       - when:
@@ -46,7 +58,7 @@ commands:
                   pip install -r requirements-docs.txt
 
       - save_cache:
-          key: cache-v4-{{ arch }}-python<< parameters.python-version >>-{{ checksum "requirements.txt" }}-{{ checksum "requirements-server.txt" }}-{{ checksum "requirements-dev.txt" }}-{{ checksum "requirements-experimental.txt" }}-{{ checksum "requirements-docs.txt" }}
+          key: cache-v4-{{ arch }}-python<< parameters.python-version >>-<< parameters.chardet >>-{{ checksum "requirements.txt" }}-{{ checksum "requirements-server.txt" }}-{{ checksum "requirements-dev.txt" }}-{{ checksum "requirements-experimental.txt" }}-{{ checksum "requirements-docs.txt" }}
           paths:
             - ~/venv
 
@@ -55,6 +67,9 @@ jobs:
     parameters:
       python-version:
         type: string
+      chardet:
+        type: string
+        default: ""
     working_directory: ~/web-monitoring-diff
     docker:
       - image: cimg/python:<< parameters.python-version >>
@@ -62,6 +77,7 @@ jobs:
       - checkout
       - setup_pip:
           python-version: << parameters.python-version >>
+          chardet: << parameters.chardet >>
       - run:
           name: Tests
           command: |
@@ -179,7 +195,23 @@ workflows:
               only: /^v.*/
           matrix:
             parameters:
-              python-version: ["3.7", "3.8", "3.9", "3.10"]
+              python-version: ["3.7", "3.8", "3.9", "3.10", "3.11"]
+              chardet: ["", "cchardet", "faust-cchardet"]
+            exclude:
+              - python-version: "3.7"
+                chardet: "faust-cchardet"
+              - python-version: "3.8"
+                chardet: "faust-cchardet"
+              - python-version: "3.9"
+                chardet: "faust-cchardet"
+              - python-version: "3.11"
+                chardet: "cchardet"
+              # - python-version: "3.12"
+              #   chardet: "cchardet"
+              # - python-version: "3.13"
+              #   chardet: "cchardet"
+              # - python-version: "3.14"
+              #   chardet: "cchardet"
       - lint:
           filters:
             tags:

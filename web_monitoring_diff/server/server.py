@@ -10,7 +10,6 @@ import mimetypes
 import os
 import pycurl
 import re
-import cchardet
 import sentry_sdk
 import signal
 import sys
@@ -24,6 +23,17 @@ import web_monitoring_diff
 from .. import basic_diffs, html_render_diff, html_links_diff
 from ..exceptions import UndiffableContentError, UndecodableContentError
 from ..utils import shutdown_executor_in_loop, Signal
+
+# Where possible, use cchardet (or faust-cchardet) for performance.
+# Unfortunately these aren't supported in the latest Python vesions, so we also
+# fall back to something in pure Python for those cases. There are a few
+# options there, but `chardet` offers the best accuracy/performance tradeoff
+# when operating on truncated/small content (we always truncate).
+# (Performance measurements as of mid-2024.)
+try:
+    import cchardet as chardet
+except ImportError:
+    import chardet
 
 logger = logging.getLogger(__name__)
 
@@ -641,11 +651,11 @@ def _extract_encoding(headers, content):
     if encoding:
         encoding = encoding.strip()
     if not encoding and content:
-        # try to identify encoding using cchardet. Use up to 18kb of the
+        # try to identify encoding using chardet. Use up to 18kb of the
         # content for detection. Its not necessary to use the full content
         # as it could be huge. Also, if you use too little, detection is not
         # accurate.
-        detected = cchardet.detect(content[:18432])
+        detected = chardet.detect(content[:18432])
         if detected:
             detected_encoding = detected.get('encoding')
             if detected_encoding:
