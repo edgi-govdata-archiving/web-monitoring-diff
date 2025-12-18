@@ -342,10 +342,10 @@ class DiffingServerExceptionHandlingTest(DiffingServerTestCase):
         # Polish content without any content-type headers or meta tag.
         headers = {}
         body = """<html><head><title>TITLE</title></head>
-        <i>czyli co zrobić aby zobaczyć w tekstach polskie litery.</i>
-        Obowiązku czytania nie ma, ale wiele może wyjaśnić.
-        <body></body>""".encode('iso-8859-2')
-        assert df._extract_encoding(headers, body) == 'iso-8859-2'
+         <i>И така, какво да направите, за да видите българските букви в текстовете?</i>
+         Четенето не е задължително, но може да обясни много.
+         <body></body>""".encode('iso-8859-5')
+        assert df._extract_encoding(headers, body) == 'iso-8859-5'
 
     def test_diff_content_with_null_bytes(self):
         response = self.fetch('/html_source_dmp?format=json&'
