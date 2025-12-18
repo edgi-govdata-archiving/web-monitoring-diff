@@ -15,6 +15,9 @@ commands:
         description: Install docs dependencies
         type: boolean
         default: false
+      chardet:
+        type: string
+        default: ""
     steps:
       - restore_cache:
           keys:
@@ -34,6 +37,14 @@ commands:
             pip install --upgrade pip
             pip install .[server,dev] --no-binary lxml
             pip install -r requirements-experimental.txt
+
+      - when:
+          condition: << parameters.chardet >>
+          steps:
+            - run:
+                command: |
+                  . ~/venv/bin/activate
+                  pip install << parameters.chardet >>
 
       # Docs dependencies are only compatible on Python 3.10+, so only install
       # them on demand.
@@ -55,6 +66,9 @@ jobs:
     parameters:
       python-version:
         type: string
+      chardet:
+        type: string
+        default: ""
     working_directory: ~/web-monitoring-diff
     docker:
       - image: cimg/python:<< parameters.python-version >>
@@ -62,6 +76,7 @@ jobs:
       - checkout
       - setup_pip:
           python-version: << parameters.python-version >>
+          chardet: << parameters.chardet >>
       - run:
           name: Tests
           command: |
@@ -180,6 +195,7 @@ workflows:
           matrix:
             parameters:
               python-version: ["3.7", "3.8", "3.9", "3.10"]
+              chardet: ["", "cchardet"]
       - lint:
           filters:
             tags:

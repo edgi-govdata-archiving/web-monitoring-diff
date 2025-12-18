@@ -6,7 +6,7 @@
 # We separate them out so that the final `release` image can layer on top of
 # this one without needing compiler-related packages.
 ##
-FROM python:3.10.11-slim as base
+FROM python:3.10.17-slim as base
 LABEL maintainer="enviroDGI@gmail.com"
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -29,6 +29,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 
 RUN pip install --upgrade pip
+RUN pip install cchardet
 # Copy the requirements.txt alone into the container at /app
 # so that they can be cached more aggressively than the rest of the source.
 ADD requirements.txt /app

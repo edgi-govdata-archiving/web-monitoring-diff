@@ -7,7 +7,7 @@
 #
 # It only exists to keep the list of dependencies in a separate file from
 # setup.py.
-cchardet >=2.1.6,<3
+chardet >=5.0.0,<6
 pycurl >=7.43,<8
 sentry-sdk >=1.0.0,<2.0
 tornado >=6.0.0,<7

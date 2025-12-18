@@ -72,6 +72,15 @@ This package was originally built as a component of EDGI’s [Web Monitoring Pro
     pip install -r requirements-experimental.txt
     ```
 
+4. (Optional) If you are using the diff *server* and want high-performance character encoding detection, install [`cchardet`](https://pypi.org/project/cchardet). Note that it only supports Python 3.10 and *earlier* at the time of this writing. An alpha release supports up to Python 3.12.
+
+    ```sh
+    pip install cchardet
+
+    # Or, for Python 3.11 or 3.12:
+    pip install cchardet==2.2.0a2
+    ```
+
 
 ## Basic Usage
 
