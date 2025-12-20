@@ -9,6 +9,8 @@ In Development
 
 - Add ``MAX_DIFFS_PER_WORKER`` environment variable for diff server configuration. When set to a positive integer, a worker process that handles running the actual diff will be restarted after running this many diffs (the number of workers can be controlled with ``DIFFER_PARALLELISM``, which is not new). If ``0`` or not set, workers will only be restarted if they crash. Setting this appropriately can help keep resources within limits and prevent eventual hangs or crashes. (:issue:`210`)
 
+- The diff server now requires Sentry 2.x for error tracking.
+
 
 Version 0.1.7 (2025-10-06)
 --------------------------

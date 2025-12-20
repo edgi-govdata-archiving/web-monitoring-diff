@@ -9,5 +9,5 @@
 # setup.py.
 chardet >=5.0.0,<6
 pycurl >=7.43,<8
-sentry-sdk >=1.0.0,<2.0
+sentry-sdk[tornado] >=2.0.0,<3.0
 tornado >=6.0.0,<7
