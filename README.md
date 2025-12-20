@@ -10,7 +10,7 @@ This package was originally built as a component of EDGI’s [Web Monitoring Pro
 
 ## Installation
 
-*web-monitoring-diff* requires Python 3.7 or newer. Before anything else, make sure you’re using a supported version of Python. If you need to support different local versions of Python on your computer, we recommend using [pyenv](https://github.com/pyenv/pyenv) or [Conda](https://docs.conda.io/en/latest/).
+*web-monitoring-diff* requires Python 3.10 or newer. Before anything else, make sure you’re using a supported version of Python. If you need to support different local versions of Python on your computer, we recommend using [pyenv](https://github.com/pyenv/pyenv) or [Conda](https://docs.conda.io/en/latest/).
 
 1. *web-monitoring-diff* depends on several system-level libraries that you may need to install first. Specifically, you’ll need: `libxml2`, `libxslt`, `openssl`, and `libcurl`.
 

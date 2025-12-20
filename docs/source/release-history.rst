@@ -11,6 +11,8 @@ In Development
 
 - The diff server now requires Sentry 2.x for error tracking.
 
+- The minimum required Python version is now 3.10.
+
 
 Version 0.1.7 (2025-10-06)
 --------------------------

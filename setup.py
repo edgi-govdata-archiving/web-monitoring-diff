@@ -7,9 +7,9 @@ import sys
 import versioneer
 
 
-min_version = (3, 7)
+min_version = (3, 10)
 if sys.version_info < min_version:
-    raise RuntimeError("Python version is {}. Requires 3.7 or greater."
+    raise RuntimeError("Python version is {}. Requires 3.10 or greater."
                        "".format(sys.version_info))
 
 
