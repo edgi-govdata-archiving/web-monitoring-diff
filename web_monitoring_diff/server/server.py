@@ -605,7 +605,7 @@ class DiffHandler(BaseHandler):
         # issues. (Usually a non-HTTPError will have been raised in this case,
         # but PublicError can be used for special status codes.)
         if isinstance(actual_error, tornado.web.HTTPError) and response['code'] >= 500:
-            with sentry_sdk.push_scope() as scope:
+            with sentry_sdk.new_scope() as scope:
                 # TODO: this breadcrumb should happen at the start of the
                 # request handler, but we need to test and make sure crumbs are
                 # properly attached to *this* HTTP request and don't bleed over
@@ -615,14 +615,14 @@ class DiffHandler(BaseHandler):
                 headers = dict(self.request.headers)
                 if 'Authorization' in headers:
                     headers['Authorization'] = '[removed]'
-                sentry_sdk.add_breadcrumb(category='request', data={
+                scope.add_breadcrumb(category='request', data={
                     'url': self.request.full_url(),
                     'method': self.request.method,
                     'headers': headers,
                 })
-                sentry_sdk.add_breadcrumb(category='response', data=response)
+                scope.add_breadcrumb(category='response', data=response)
                 scope.level = 'info'
-                sentry_sdk.capture_exception(actual_error)
+                scope.capture_exception(actual_error)
 
         # Fill in full info if configured to do so
         if self.settings.get('serve_traceback') and 'exc_info' in kwargs:

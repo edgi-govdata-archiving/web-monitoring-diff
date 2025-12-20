@@ -2,7 +2,7 @@
 Installation
 ============
 
-*web-monitoring-diff* requires **Python 3.7 or newer**. Before anything else, make sure you’re using a supported version of Python. If you need to support different local versions of Python on your computer, we recommend using `pyenv`_ or `Conda`_.
+*web-monitoring-diff* requires **Python 3.10 or newer**. Before anything else, make sure you’re using a supported version of Python. If you need to support different local versions of Python on your computer, we recommend using `pyenv`_ or `Conda`_.
 
 1. **System-level dependencies:** web-monitoring-diff depends on several system-level, non-Python libraries that you may need to install first. Specifically, you’ll need: ``libxml2``, ``libxslt``, ``openssl``, and ``libcurl``.
 

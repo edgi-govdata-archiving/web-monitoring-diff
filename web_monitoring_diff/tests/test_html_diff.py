@@ -1,8 +1,8 @@
 from datetime import datetime
 import functools
+import importlib.resources
 import os
 from pathlib import Path
-from pkg_resources import resource_filename
 import pytest
 from web_monitoring_diff.experimental import htmltreediff, htmldiffer
 from web_monitoring_diff.html_render_diff import html_diff_render
@@ -10,11 +10,10 @@ from web_monitoring_diff.html_render_diff import html_diff_render
 
 def lookup_pair(fn):
     """Read example data named {fn}.before and {fn}.after"""
-    fn1 = 'example_data/{}.before'.format(fn)
-    fn2 = 'example_data/{}.after'.format(fn)
-    with open(resource_filename('web_monitoring_diff', fn1)) as f:
+    example_data = importlib.resources.files('web_monitoring_diff') / 'example_data'
+    with (example_data / f'{fn}.before').open() as f:
         before = f.read()
-    with open(resource_filename('web_monitoring_diff', fn2)) as f:
+    with (example_data / f'{fn}.after').open() as f:
         after = f.read()
     return before, after
 

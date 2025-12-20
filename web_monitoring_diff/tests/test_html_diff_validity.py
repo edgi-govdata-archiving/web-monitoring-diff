@@ -6,8 +6,7 @@ in the sense that the diff is “wrong” as opposed to just testing that the di
 doesn’t break or throw exceptions.
 """
 
-from pathlib import Path
-from pkg_resources import resource_filename
+import importlib.resources
 import html5_parser
 import pytest
 import re
@@ -158,8 +157,8 @@ def test_html_diff_render_should_not_break_with_empty_content():
 
 
 def test_html_diff_render_should_raise_for_non_html_content():
-    pdf_file = resource_filename('web_monitoring_diff', 'example_data/empty.pdf')
-    pdf_content = Path(pdf_file).read_text(errors='ignore')
+    pdf_file = importlib.resources.files('web_monitoring_diff') / 'example_data' / 'empty.pdf'
+    pdf_content = pdf_file.read_text(errors='ignore')
 
     with pytest.raises(UndiffableContentError):
         html_diff_render(
@@ -216,8 +215,8 @@ def test_html_diff_render_should_not_check_content_type_header_if_content_type_o
 
 
 def test_html_diff_render_should_not_raise_for_non_html_content_if_content_type_options_is_nosniff():
-    pdf_file = resource_filename('web_monitoring_diff', 'example_data/empty.pdf')
-    pdf_content = Path(pdf_file).read_text(errors='ignore')
+    pdf_file = importlib.resources.files('web_monitoring_diff') / 'example_data' / 'empty.pdf'
+    pdf_content = pdf_file.read_text(errors='ignore')
 
     html_diff_render(
         '<p>Just a little HTML</p>',
@@ -226,8 +225,8 @@ def test_html_diff_render_should_not_raise_for_non_html_content_if_content_type_
 
 
 def test_html_diff_render_should_not_check_content_if_content_type_options_is_ignore():
-    pdf_file = resource_filename('web_monitoring_diff', 'example_data/empty.pdf')
-    pdf_content = Path(pdf_file).read_text(errors='ignore')
+    pdf_file = importlib.resources.files('web_monitoring_diff') / 'example_data' / 'empty.pdf'
+    pdf_content = pdf_file.read_text(errors='ignore')
 
     html_diff_render(
         '<p>Just a little HTML</p>',
