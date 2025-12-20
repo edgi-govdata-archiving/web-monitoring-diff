@@ -7,7 +7,6 @@ doesn’t break or throw exceptions.
 """
 
 import importlib.resources
-from pathlib import Path
 import html5_parser
 import pytest
 import re

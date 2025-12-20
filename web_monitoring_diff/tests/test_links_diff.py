@@ -1,5 +1,4 @@
 import importlib.resources
-from pathlib import Path
 import pytest
 from web_monitoring_diff.exceptions import UndiffableContentError
 from web_monitoring_diff.html_links_diff import links_diff, links_diff_html
