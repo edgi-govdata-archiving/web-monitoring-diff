@@ -1,7 +1,7 @@
 import glob
 import re
 from pathlib import Path
-from setuptools import setup, find_packages
+from setuptools import setup
 import sys
 
 import versioneer
@@ -43,37 +43,13 @@ def read_requirements(fname):
             if not r.startswith('git+https://') and not r.startswith('#')]
 
 
+
 setup(
-    name='web-monitoring-diff',
     version=versioneer.get_version(),
     cmdclass=versioneer.get_cmdclass(),
-    description='Tools for diffing & comparing web content, including a web '
-                'server that generates those diffs as an HTTP service.',
-    long_description=read('README.md'),
-    long_description_content_type='text/markdown',
-    author="Environmental Data Governance Initiative",
-    author_email='EnviroDGI@protonmail.com',
-    url='https://github.com/edgi-govdata-archiving/web-monitoring-diff',
-    python_requires='>={}'.format('.'.join(str(n) for n in min_version)),
-    packages=find_packages(exclude=['docs', 'tests']),
-    # NOTE: when updating this, make sure to update MANIFEST.in as well!
-    package_data={'web_monitoring_diff': ['example_data/*']},
+    install_requires=read_requirements('requirements.txt'),
     # TODO: migrate to entry_points, which is recommended.
     scripts=glob.glob('scripts/*'),
-    license="GPL-3.0-only",
-    project_urls={
-        'Documentation': 'https://web-monitoring-diff.readthedocs.io/en/stable/',
-        'Changelog': 'https://web-monitoring-diff.readthedocs.io/en/stable/release-history.html',
-        'Source code': 'https://github.com/edgi-govdata-archiving/web-monitoring-diff',
-        'Issues': 'https://github.com/edgi-govdata-archiving/web-monitoring-diff/issues',
-    },
-    classifiers=[
-        'Development Status :: 2 - Pre-Alpha',
-        'Natural Language :: English',
-        'Programming Language :: Python :: 3',
-        'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
-    ],
-    install_requires=read_requirements('requirements.txt'),
     extras_require={
         'server': read_requirements('requirements-server.txt'),
         'dev': read_requirements('requirements-dev.txt'),

@@ -1,0 +1,52 @@
+[build-system]
+requires = ["setuptools", "wheel", "versioneer[toml]"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "web-monitoring-diff"
+dynamic = ["version", "dependencies", "optional-dependencies"]
+
+description = "Tools for diffing & comparing web content, including a web server that generates those diffs as an HTTP service."
+readme = "README.md"
+authors = [
+    {name = "Environmental Data Governance Initiative", email = "EnviroDGI@protonmail.com"}
+]
+
+license = {text = "GPL-3.0-only"}
+requires-python = ">=3.10"
+
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Natural Language :: English",
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+]
+
+[project.urls]
+"Documentation" = "https://web-monitoring-diff.readthedocs.io/en/stable/"
+"Changelog" = "https://web-monitoring-diff.readthedocs.io/en/stable/release-history.html"
+"Source code" = "https://github.com/edgi-govdata-archiving/web-monitoring-diff"
+"Issues" = "https://github.com/edgi-govdata-archiving/web-monitoring-diff/issues"
+
+[tool.versioneer]
+VCS = "git"
+style = "pep440-post"
+versionfile_source = "web_monitoring_diff/_version.py"
+versionfile_build = "web_monitoring_diff/_version.py"
+tag_prefix = "v"
+
+[tool.setuptools]
+packages = {find = {exclude = ["docs", "tests"]}}
+include-package-data = true
+
+[tool.setuptools.package-data]
+web_monitoring_diff = ["_version.py", "example_data/*"]
+
+[tool.numpydoc_validation]
+checks = [
+    "all",
+    "SA01",
+    "SS06",
+    "RT01",
+    "EX01"
+]
