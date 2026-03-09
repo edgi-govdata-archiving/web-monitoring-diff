@@ -441,7 +441,7 @@ class BrokenProcessPoolExecutor(concurrent.futures.Executor):
         return asyncio.run_coroutine_threadsafe(self.failing_task(), loop)
 
     async def failing_task(self):
-        await asyncio.sleep(0.001)
+        await asyncio.sleep(0.005)
         raise BrokenProcessPool(
             'This pool is broken, yo'
         )
