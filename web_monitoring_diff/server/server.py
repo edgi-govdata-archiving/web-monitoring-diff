@@ -168,6 +168,7 @@ class PublicError(tornado.web.HTTPError):
 
         super().__init__(status_code, log_message, **kwargs)
 
+
 DEBUG_MODE = os.environ.get('DIFFING_SERVER_DEBUG', 'False').strip().lower() == 'true'
 
 VALIDATE_TARGET_CERTIFICATES = \

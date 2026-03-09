@@ -1,9 +1,11 @@
 import mimetypes
 
+
 class MockRequest:
     "An HTTPRequest-like object for local file:/// requests."
     def __init__(self, url):
         self.url = url
+
 
 class MockResponse:
     "An HTTPResponse-like object for local file:/// requests."
