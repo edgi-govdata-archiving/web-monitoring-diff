@@ -29,6 +29,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     g++ \
     pkg-config \
+    # Compiler-support for the system dependencies in `base`
     libxml2-dev \
     libxslt-dev \
     libz-dev \
@@ -60,27 +61,22 @@ RUN pip install .[server] --no-binary lxml
 ##
 
 FROM base AS release
-
 ARG VERSION=unknown
-ARG REVISION=unknown
-ARG CREATED=unknown
+
 
 LABEL org.opencontainers.image.title="web-monitoring-diff" \
-      org.opencontainers.image.description="Tools and server for detecting changes in web content" \
-      org.opencontainers.image.authors="enviroDGI@gmail.com" \
+      org.opencontainers.image.description="Server for detecting changes in web content" \
+      org.opencontainers.image.authors="Environmental Data & Governance Initiative (EDGI)" \
+      org.opencontainers.image.url="https://envirodatagov.org/" \
       org.opencontainers.image.source="https://github.com/edgi-govdata-archiving/web-monitoring-diff" \
-      org.opencontainers.image.documentation="https://github.com/edgi-govdata-archiving/web-monitoring-diff#readme" \
-      org.opencontainers.image.licenses="MIT" \
-      org.opencontainers.image.version=$VERSION \
-      org.opencontainers.image.revision=$REVISION \
-      org.opencontainers.image.created=$CREATED \
-      org.opencontainers.image.base.name="python:3.10.17-slim"
+      org.opencontainers.image.documentation="https://web-monitoring-diff.readthedocs.io/" \
+      org.opencontainers.image.licenses="GPL-3.0-only" \
+      org.opencontainers.image.version=$VERSION
 
 COPY --from=dev /usr/local/lib/ /usr/local/lib/
 COPY --from=dev /usr/local/bin/ /usr/local/bin/
 
 ENV LD_LIBRARY_PATH=/usr/local/lib
-WORKDIR /app
 
 EXPOSE 80
 
