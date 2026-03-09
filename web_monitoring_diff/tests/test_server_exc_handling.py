@@ -437,11 +437,14 @@ class BrokenProcessPoolExecutor(concurrent.futures.Executor):
 
     def submit(self, fn, *args, **kwargs):
         self.submit_count += 1
-        result = concurrent.futures.Future()
-        result.set_exception(BrokenProcessPool(
+        loop = asyncio.get_running_loop()
+        return asyncio.run_coroutine_threadsafe(self.failing_task(), loop)
+
+    async def failing_task(self):
+        await asyncio.sleep(0.001)
+        raise BrokenProcessPool(
             'This pool is broken, yo'
-        ))
-        return result
+        )
 
 
 class ExecutionPoolTestCase(DiffingServerTestCase):
