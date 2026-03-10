@@ -1,6 +1,6 @@
 [project]
 name = "web-monitoring-diff"
-dynamic = ["version", "dependencies", "optional-dependencies"]
+dynamic = ["version"]
 
 description = "Tools for diffing & comparing web content, including a web server that generates those diffs as an HTTP service."
 readme = "README.md"
@@ -44,8 +44,8 @@ docs = [
 ]
 # Experimental Dependencies
 experimental = [
-    "git+https://github.com/anastasia/htmldiffer@develop",
-    "git+https://github.com/danielballan/htmltreediff@customize",
+    "htmldiffer @ git+https://github.com/anastasia/htmldiffer@develop",
+    "htmltreediff @ git+https://github.com/danielballan/htmltreediff@customize"
 ]
 
 [project.urls]
