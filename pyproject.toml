@@ -75,12 +75,3 @@ build.hooks.vcs.version-file = "web_monitoring_diff/_version.py"
 # need this for git depenencies
 [tool.hatch.metadata]
 allow-direct-references = true
-
-[tool.numpydoc_validation]
-checks = [
-    "all",
-    "SA01",
-    "SS06",
-    "RT01",
-    "EX01"
-]
