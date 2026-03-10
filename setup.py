@@ -48,8 +48,6 @@ setup(
     version=versioneer.get_version(),
     cmdclass=versioneer.get_cmdclass(),
     install_requires=read_requirements('requirements.txt'),
-    # TODO: migrate to entry_points, which is recommended.
-    scripts=glob.glob('scripts/*'),
     extras_require={
         'server': read_requirements('requirements-server.txt'),
         'dev': read_requirements('requirements-dev.txt'),

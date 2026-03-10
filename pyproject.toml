@@ -22,11 +22,44 @@ classifiers = [
     "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
 ]
 
+[project.optional-dependencies]
+# Dependencies for the HTTP server.
+server = [
+    "chardet >=5.0.0,<6",
+    "pycurl >=7.43,<8",
+    "sentry-sdk[tornado] >=2.0.0,<3.0",
+    "tornado >=6.0.0,<7",
+]
+# Development-related dependencies (for building, running tests, etc.)
+dev = [
+    "coverage ~=7.13",
+    "flake8 ~=7.3.0",
+    "pytest ~=9.0.2",
+]
+# Tools for building documentation. Some of our docs tools conflict with dev
+# tools on Python < 10, so docs tools are listed here in order to make it
+# possible to skip installing them if not needed.
+docs = [
+    "ipython ~=7.34.0",
+    "numpydoc ~=1.10",
+    "sphinx ~=8.2.3",
+    "sphinx-copybutton ~=0.5.2",
+    "sphinx_rtd_theme ~=3.0.2",
+]
+# Experimental Dependencies
+experimental = [
+    "git+https://github.com/anastasia/htmldiffer@develop",
+    "git+https://github.com/danielballan/htmltreediff@customize",
+]
+
 [project.urls]
 "Documentation" = "https://web-monitoring-diff.readthedocs.io/en/stable/"
 "Changelog" = "https://web-monitoring-diff.readthedocs.io/en/stable/release-history.html"
 "Source code" = "https://github.com/edgi-govdata-archiving/web-monitoring-diff"
 "Issues" = "https://github.com/edgi-govdata-archiving/web-monitoring-diff/issues"
+
+[project.scripts]
+web-monitoring-diff-server = "web_monitoring_diff.server.server:cli"
 
 [tool.versioneer]
 VCS = "git"
