@@ -58,7 +58,7 @@ Installation
 
   .. code-block:: bash
 
-    pip install -r requirements-experimental.txt
+    pip install ".[experimental]"
 
 
 .. _pyenv: https://github.com/pyenv/pyenv

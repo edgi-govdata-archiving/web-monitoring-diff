@@ -22,7 +22,7 @@ build:
       - python -m pip install '.[server,docs]' --no-binary lxml --upgrade --upgrade-strategy only-if-needed
       # Experimental dependencies are not supported in standard package
       # metadata, so we need to pip install them directly.
-      - python -m pip install --exists-action=w -r requirements-experimental.txt
+      - python -m pip install --exists-action=w ".[experimental]"
 
 sphinx:
   configuration: docs/source/conf.py

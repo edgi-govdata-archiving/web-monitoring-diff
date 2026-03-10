@@ -24,7 +24,7 @@ def diff(a_text, b_text):
 
     You can also install all experimental differs with::
 
-        $ pip install -r requirements-experimental.txt
+        $ pip install ".[experimental]"
 
     NOTE: this differ parses HTML in pure Python and can be very slow when
     using the standard, CPython interpreter. If you plan to use it in a
