@@ -52,7 +52,7 @@ docs = [
 # Experimental Dependencies
 experimental = [
     "htmldiffer @ git+https://github.com/anastasia/htmldiffer@develop",
-    "htmltreediff @ git+https://github.com/danielballan/htmltreediff@customize"
+    "html-tree-diff @ git+https://github.com/danielballan/htmltreediff@customize"
 ]
 
 [project.urls]
