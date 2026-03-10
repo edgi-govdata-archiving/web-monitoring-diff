@@ -1,4 +1,4 @@
-from ._version import __version__, __version_tuple__
+from ._version import __version__, __version_tuple__ # noqa: F401
 
 # Import all diff types to the top level.
 from .basic_diffs import (  # noqa
