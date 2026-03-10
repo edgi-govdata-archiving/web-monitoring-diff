@@ -60,7 +60,7 @@ extensions = [
 # Generate the API documentation when building
 autosummary_generate = True
 numpydoc_show_class_members = False
-autodoc_mock_imports = ['html5_parser', 'pycurl', 'sentry']
+autodoc_mock_imports = ['html5_parser', 'htmldiffer', 'htmltreediff', 'pycurl', 'sentry']
 numpydoc_xref_param_type = True
 numpydoc_xref_ignore = {'type', 'optional', 'default'}
 

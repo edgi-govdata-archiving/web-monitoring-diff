@@ -10,5 +10,6 @@ This package was originally built as a component of EDGI’s `Web Monitoring Pro
 
    installation
    usage
+   configuration
    api-reference
    release-history
