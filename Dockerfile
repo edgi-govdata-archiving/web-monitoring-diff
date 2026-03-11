@@ -34,7 +34,7 @@ RUN pip install cchardet
 # so that they can be cached more aggressively than the rest of the source.
 ADD pyproject.toml /app/
 # Set an environment variable to bypass the Git version check during dependency install
-RUN PRETEND_VERSION_FOR_WEB_MONITORING_DIFF=0.0.0 \
+RUN SETUPTOOLS_SCM_PRETEND_VERSION_FOR_WEB_MONITORING_DIFF=0.0.0 \
     pip install ".[server,experimental]"
 
 # Copy the rest of the source.
