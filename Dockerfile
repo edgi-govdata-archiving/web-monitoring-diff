@@ -30,9 +30,8 @@ WORKDIR /app
 
 RUN pip install --upgrade pip
 RUN pip install cchardet
-# Copy the pyproject.toml alone into the container at /app
-# so that they can be cached more aggressively than the rest of the source.
-ADD pyproject.toml /app/
+
+ADD pyproject.toml README.md LICENSE /app/
 # Set an environment variable to bypass the Git version check during dependency install
 RUN SETUPTOOLS_SCM_PRETEND_VERSION=0.0.0 pip install ".[server,experimental]"
 
