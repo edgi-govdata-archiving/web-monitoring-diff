@@ -33,7 +33,9 @@ RUN pip install cchardet
 # Copy the pyproject.toml alone into the container at /app
 # so that they can be cached more aggressively than the rest of the source.
 ADD pyproject.toml /app/
-RUN pip install ".[server,experimental]"
+# Set an environment variable to bypass the Git version check during dependency install
+RUN PRETEND_VERSION_FOR_WEB_MONITORING_DIFF=0.0.0 \
+    pip install ".[server,experimental]"
 
 # Copy the rest of the source.
 ADD . /app
