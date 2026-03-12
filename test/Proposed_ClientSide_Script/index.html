@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Pro PDF Diff Engine</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <style>
+        :root {
+            --bg: #0D1117;
+            --surface: #161B22;
+            --surface2: #21262D;
+            --border: #30363D;
+            --text: #E6EDF3;
+            --subtext: #8B949E;
+            --accent: #58A6FF;
+            --added: rgba(79, 195, 247, 0.45);
+            --removed: rgba(255, 213, 79, 0.45);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        /* Top bar with title and buttons */
+        #top-bar {
+            height: 56px;
+            background: var(--surface);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            border-bottom: 1px solid var(--border);
+            gap: 10px;
+        }
+        
+        #app-title {
+            font-family: 'Courier New', monospace;
+            font-weight: 700;
+            font-size: 14px;
+            color: var(--text);
+            margin-right: 8px;
+            white-space: nowrap;
+        }
+
+        /* Standard button styling */
+        .btn {
+            background: var(--surface2);
+            color: #C9D1D9;
+            border: 1px solid var(--border);
+            padding: 6px 14px;
+            cursor: pointer;
+            border-radius: 6px;
+            font-size: 13px;
+            transition: background 0.15s, border-color 0.15s;
+            white-space: nowrap;
+        }
+        
+        .btn:hover { background: var(--border); border-color: var(--subtext); }
+        .btn.selected { border-color: var(--accent); color: var(--accent); }
+
+        /* Green "Compare" button */
+        #run-btn {
+            background: #238636;
+            color: white;
+            border: none;
+            font-weight: 600;
+            padding: 6px 18px;
+        }
+        
+        #run-btn:hover:not(:disabled) { background: #2ea043; }
+        #run-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        /* Status message on the right */
+        #status {
+            font-size: 12px;
+            color: var(--subtext);
+            flex-grow: 1;
+            text-align: right;
+        }
+
+        /* Legend showing color codes */
+        .legend {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            font-size: 12px;
+            color: var(--subtext);
+        }
+        
+        .legend-dot {
+            width: 12px; height: 12px;
+            border-radius: 2px;
+            display: inline-block;
+            margin-right: 5px;
+        }
+
+        /* Two side-by-side panes */
+        #pane-wrapper {
+            display: flex;
+            height: calc(100vh - 56px);
+        }
+        
+        .pane-col {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border-right: 1px solid var(--border);
+        }
+        
+        .pane-col:last-child { border-right: none; }
+
+        /* Header for each pane */
+        .pane-header {
+            height: 30px;
+            background: var(--surface2);
+            display: flex;
+            align-items: center;
+            padding: 0 14px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            flex-shrink: 0;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        #old-header { color: #E3B341; }
+        #new-header { color: var(--accent); }
+
+        /* Scrollable pane content */
+        .pane {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            background: #010409;
+            padding: 24px 20px;
+            scroll-behavior: auto;
+        }
+
+        /* PDF page container */
+        .page-container {
+            position: relative;
+            margin: 0 auto 28px auto;
+            background: white;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+            line-height: 0;
+        }
+        
+        .page-canvas { display: block; }
+        
+        /* Overlay for highlighting differences */
+        .highlight-canvas {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+        }
+
+        /* Progress bar at the top */
+        #progress-bar {
+            height: 3px;
+            background: var(--accent);
+            width: 0%;
+            transition: width 0.3s;
+            position: fixed;
+            top: 56px;
+            left: 0;
+            z-index: 100;
+        }
+    </style>
+</head>
+<body>
+
+<div id="progress-bar"></div>
+
+<!-- Top control bar -->
+<div id="top-bar">
+    <span id="app-title">⬛ PDF DIFF</span>
+
+    <button class="btn" id="old-label" onclick="document.getElementById('old-file').click()">
+        📂 Old PDF
+    </button>
+    <button class="btn" id="new-label" onclick="document.getElementById('new-file').click()">
+        📂 New PDF
+    </button>
+    <button id="run-btn" onclick="runDiff()" disabled>▶ Compare</button>
+
+    <!-- Color legend -->
+    <div class="legend">
+        <span><span class="legend-dot" style="background:rgba(255,213,79,0.8)"></span>Removed</span>
+        <span><span class="legend-dot" style="background:rgba(79,195,247,0.8)"></span>Added</span>
+    </div>
+
+    <div id="status">Select both PDFs to begin.</div>
+
+    <!-- Hidden file inputs -->
+    <input type="file" id="old-file" hidden accept=".pdf">
+    <input type="file" id="new-file" hidden accept=".pdf">
+</div>
+
+<!-- Side-by-side PDF viewers -->
+<div id="pane-wrapper">
+    <div class="pane-col">
+        <div class="pane-header" id="old-header">OLD VERSION</div>
+        <div class="pane" id="left-pane"></div>
+    </div>
+    <div class="pane-col">
+        <div class="pane-header" id="new-header">NEW VERSION</div>
+        <div class="pane" id="right-pane"></div>
+    </div>
+</div>
+
+<script>
+'use strict';
+
+// Setup PDF.js library
+const pdfjsLib = window['pdfjs-dist/build/pdf'];
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+const RENDER_SCALE = 1.5;
+
+// Store selected files
+let oldFile = null, newFile = null;
+
+// Listen for old PDF selection
+document.getElementById('old-file').addEventListener('change', e => {
+    oldFile = e.target.files[0];
+    if (oldFile) {
+        const name = oldFile.name;
+        const label = name.length > 22 ? name.slice(0, 19) + '…' : name;
+        document.getElementById('old-label').textContent = `📄 ${label}`;
+        document.getElementById('old-label').classList.add('selected');
+        checkReady();
+    }
+});
+
+// Listen for new PDF selection
+document.getElementById('new-file').addEventListener('change', e => {
+    newFile = e.target.files[0];
+    if (newFile) {
+        const name = newFile.name;
+        const label = name.length > 22 ? name.slice(0, 19) + '…' : name;
+        document.getElementById('new-label').textContent = `📄 ${label}`;
+        document.getElementById('new-label').classList.add('selected');
+        checkReady();
+    }
+});
+
+// Enable compare button only when both files are selected
+function checkReady() {
+    document.getElementById('run-btn').disabled = !(oldFile && newFile);
+}
+
+// ===== STEP 1: Extract all words from PDF with exact positions =====
+
+const _measureCanvas = document.createElement('canvas');
+const _measureCtx    = _measureCanvas.getContext('2d');
+
+// Measure text width using canvas (accounts for real font metrics)
+function measureWordWidths(words, fontSpec) {
+    _measureCtx.font = fontSpec;
+    return words.map(w => _measureCtx.measureText(w).width);
+}
+
+// Read PDF file and build list of words with their coordinates
+async function extractWordDatabase(file) {
+    const buffer = await file.arrayBuffer();
+    const doc    = await pdfjsLib.getDocument(buffer).promise;
+    const words  = [];
+
+    // Loop through each page
+    for (let pageNum = 1; pageNum <= doc.numPages; pageNum++) {
+        const page    = await doc.getPage(pageNum);
+        const content = await page.getTextContent();
+
+        // Process each text item on the page
+        for (const item of content.items) {
+            if (!item.str || !item.str.trim()) continue;
+
+            const tx         = item.transform[4];  // x position
+            const ty         = item.transform[5];  // y position (baseline)
+            const fontSize   = Math.abs(item.transform[3]);
+            const itemH      = item.height > 0 ? item.height : fontSize;
+            const itemTotalW = item.width;
+
+            // Split text into individual words
+            const parts = item.str.split(/(\s+)/);
+            const wordParts = parts.filter(p => p && !/^\s+$/.test(p));
+
+            if (wordParts.length === 0) continue;
+
+            // Use canvas to measure word widths accurately
+            const fontSpec   = `${fontSize}px sans-serif`;
+            _measureCtx.font = fontSpec;
+
+            const fullMeasured = _measureCtx.measureText(item.str).width;
+            const scale = fullMeasured > 0 ? itemTotalW / fullMeasured : 1;
+
+            // Track position for each word
+            let cursorX = tx;
+            for (const part of parts) {
+                if (!part) continue;
+                const partW = _measureCtx.measureText(part).width * scale;
+                
+                // Skip whitespace
+                if (/^\s+$/.test(part)) {
+                    cursorX += partW;
+                    continue;
+                }
+                
+                // Store word data
+                words.push({
+                    text: part,
+                    page: pageNum,
+                    x:    cursorX,
+                    y:    ty,
+                    w:    partW,
+                    h:    itemH,
+                });
+                cursorX += partW;
+            }
+        }
+    }
+
+    return { doc, words };
+}
+
+// ===== STEP 2: Find which words are different (Diff Algorithm) =====
+
+const LARGE_DOC_THRESHOLD = 4000;
+
+// Core LCS diff algorithm - compares two arrays efficiently
+function lcsSegment(oldArr, newArr, oldOffset, newOffset, removedSet, addedSet) {
+    const n = oldArr.length;
+    const m = newArr.length;
+
+    // Handle edge cases
+    if (n === 0) {
+        for (let j = 0; j < m; j++) addedSet.add(newOffset + j);
+        return;
+    }
+    if (m === 0) {
+        for (let i = 0; i < n; i++) removedSet.add(oldOffset + i);
+        return;
+    }
+
+    // Use two-row approach to save memory
+    let prev = new Uint32Array(m + 1);
+    let curr = new Uint32Array(m + 1);
+    const dir = new Uint8Array((n + 1) * (m + 1));
+
+    // Fill DP table
+    for (let i = 1; i <= n; i++) {
+        for (let j = 1; j <= m; j++) {
+            if (oldArr[i - 1] === newArr[j - 1]) {
+                curr[j] = prev[j - 1] + 1;
+                dir[i * (m + 1) + j] = 0; // match
+            } else if (prev[j] >= curr[j - 1]) {
+                curr[j] = prev[j];
+                dir[i * (m + 1) + j] = 1; // from above
+            } else {
+                curr[j] = curr[j - 1];
+                dir[i * (m + 1) + j] = 2; // from left
+            }
+        }
+        [prev, curr] = [curr, prev];
+        curr.fill(0);
+    }
+
+    // Trace back to find removed/added words
+    let i = n, j = m;
+    while (i > 0 || j > 0) {
+        if (i > 0 && j > 0 && dir[i * (m + 1) + j] === 0) {
+            i--; j--;
+        } else if (j > 0 && (i === 0 || dir[i * (m + 1) + j] === 2)) {
+            addedSet.add(newOffset + (--j));
+        } else {
+            removedSet.add(oldOffset + (--i));
+        }
+    }
+}
+
+// Find matching word anchors for large documents
+function findAnchors(oldArr, newArr, minBlockSize = 5) {
+    const newIndex = new Map();
+    for (let j = 0; j < newArr.length; j++) {
+        if (!newIndex.has(newArr[j])) newIndex.set(newArr[j], []);
+        newIndex.get(newArr[j]).push(j);
+    }
+
+    const anchors = [];
+    let i = 0;
+    while (i < oldArr.length) {
+        const word = oldArr[i];
+        const candidates = newIndex.get(word);
+        if (!candidates) { i++; continue; }
+
+        let bestAnchor = null;
+        for (const j of candidates) {
+            let len = 0;
+            while (
+                i + len < oldArr.length &&
+                j + len < newArr.length &&
+                oldArr[i + len] === newArr[j + len]
+            ) len++;
+            if (len >= minBlockSize && (!bestAnchor || len > bestAnchor.len)) {
+                bestAnchor = { i, j, len };
+            }
+        }
+        if (bestAnchor) {
+            anchors.push(bestAnchor);
+            i += bestAnchor.len;
+        } else {
+            i++;
+        }
+    }
+    return anchors;
+}
+
+// Main diff function that handles large documents automatically
+function diffWords(oldArr, newArr) {
+    const removed = new Set();
+    const added   = new Set();
+
+    const totalSize = oldArr.length * newArr.length;
+
+    if (totalSize <= LARGE_DOC_THRESHOLD * LARGE_DOC_THRESHOLD) {
+        // Small document - diff directly
+        lcsSegment(oldArr, newArr, 0, 0, removed, added);
+    } else {
+        // Large document - break into chunks for speed
+        const anchors = findAnchors(oldArr, newArr, 5);
+        const segments = [];
+        let prevI = 0, prevJ = 0;
+
+        for (const anchor of anchors) {
+            if (anchor.i > prevI || anchor.j > prevJ) {
+                segments.push({
+                    oldSlice: oldArr.slice(prevI, anchor.i),
+                    newSlice: newArr.slice(prevJ, anchor.j),
+                    oldOff: prevI,
+                    newOff: prevJ,
+                });
+            }
+            prevI = anchor.i + anchor.len;
+            prevJ = anchor.j + anchor.len;
+        }
+
+        if (prevI < oldArr.length || prevJ < newArr.length) {
+            segments.push({
+                oldSlice: oldArr.slice(prevI),
+                newSlice: newArr.slice(prevJ),
+                oldOff: prevI,
+                newOff: prevJ,
+            });
+        }
+
+        for (const seg of segments) {
+            lcsSegment(seg.oldSlice, seg.newSlice, seg.oldOff, seg.newOff, removed, added);
+        }
+    }
+
+    return { removed, added };
+}
+
+// ===== STEP 3: Draw pages with highlights =====
+
+// Render PDF pages with color-coded highlights for changes
+async function renderPane(pdfDoc, container, highlightWords, color) {
+    container.innerHTML = '';
+
+    // Group words by page for faster lookup
+    const byPage = new Map();
+    for (const w of highlightWords) {
+        if (!byPage.has(w.page)) byPage.set(w.page, []);
+        byPage.get(w.page).push(w);
+    }
+
+    // Draw each page
+    for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
+        const page     = await pdfDoc.getPage(pageNum);
+        const viewport = page.getViewport({ scale: RENDER_SCALE });
+
+        // Create page container
+        const div   = document.createElement('div');
+        div.className = 'page-container';
+        div.style.width  = `${viewport.width}px`;
+        div.style.height = `${viewport.height}px`;
+
+        // Render PDF to canvas
+        const baseCanvas      = document.createElement('canvas');
+        baseCanvas.className  = 'page-canvas';
+        baseCanvas.width      = viewport.width;
+        baseCanvas.height     = viewport.height;
+        await page.render({
+            canvasContext: baseCanvas.getContext('2d'),
+            viewport,
+        }).promise;
+
+        // Create highlight overlay
+        const hCanvas     = document.createElement('canvas');
+        hCanvas.className = 'highlight-canvas';
+        hCanvas.width     = viewport.width;
+        hCanvas.height    = viewport.height;
+
+        const hCtx        = hCanvas.getContext('2d');
+        hCtx.fillStyle    = color;
+
+        // Draw boxes around changed words
+        const pageWords = byPage.get(pageNum) || [];
+        for (const w of pageWords) {
+            // Convert PDF coordinates to canvas coordinates
+            const cx = w.x * RENDER_SCALE;
+            const cy = viewport.height - (w.y + w.h) * RENDER_SCALE;
+            const cw = w.w * RENDER_SCALE;
+            const ch = w.h * RENDER_SCALE;
+
+            // Skip words outside the viewport
+            if (cx < -10 || cy < -10 || cx > viewport.width + 10 || cy > viewport.height + 10) continue;
+
+            // Draw highlight rectangle
+            hCtx.fillRect(cx + 1, cy + 1, Math.max(cw - 2, 4), Math.max(ch - 2, 4));
+        }
+
+        div.append(baseCanvas, hCanvas);
+        container.appendChild(div);
+    }
+}
+
+// ===== STEP 4: Sync scrolling between panes =====
+
+const lPane = document.getElementById('left-pane');
+const rPane = document.getElementById('right-pane');
+let isSyncing = false;
+
+// Create scroll handler that keeps both panes in sync
+function makeSyncHandler(source, target) {
+    return function () {
+        if (isSyncing) return;
+        isSyncing = true;
+
+        // Use fractional position for accurate sync (works with different heights)
+        const fraction = source.scrollTop / (source.scrollHeight - source.clientHeight || 1);
+        target.scrollTop = fraction * (target.scrollHeight - target.clientHeight);
+
+        requestAnimationFrame(() => { isSyncing = false; });
+    };
+}
+
+// Sync left to right and vice versa
+lPane.addEventListener('scroll', makeSyncHandler(lPane, rPane));
+rPane.addEventListener('scroll', makeSyncHandler(rPane, lPane));
+
+// ===== STEP 5: Main comparison workflow =====
+
+// Update the progress bar
+function setProgress(pct) {
+    document.getElementById('progress-bar').style.width = pct + '%';
+}
+
+// Run the complete diff workflow
+async function runDiff() {
+    const btn    = document.getElementById('run-btn');
+    const status = document.getElementById('status');
+
+    btn.disabled = true;
+    setProgress(5);
+
+    try {
+        // Extract text from both PDFs
+        status.textContent = 'Layer 1 — Extracting word coordinates…';
+        const [oldData, newData] = await Promise.all([
+            extractWordDatabase(oldFile),
+            extractWordDatabase(newFile),
+        ]);
+        setProgress(35);
+
+        // Run diff algorithm
+        status.textContent = `Layer 2 — Running LCS diff (${oldData.words.length} × ${newData.words.length} words)…`;
+        await new Promise(r => setTimeout(r, 0));
+
+        const { removed, added } = diffWords(
+            oldData.words.map(w => w.text),
+            newData.words.map(w => w.text),
+        );
+        setProgress(60);
+
+        // Render both panes with highlights
+        status.textContent = `Layer 3 — Painting highlights (${removed.size} removed, ${added.size} added)…`;
+
+        await Promise.all([
+            renderPane(
+                oldData.doc,
+                lPane,
+                oldData.words.filter((_, i) => removed.has(i)),
+                'rgba(255, 213, 79, 0.45)'
+            ),
+            renderPane(
+                newData.doc,
+                rPane,
+                newData.words.filter((_, i) => added.has(i)),
+                'rgba(79, 195, 247, 0.45)'
+            ),
+        ]);
+        setProgress(100);
+
+        // Show final statistics
+        const total = oldData.words.length + newData.words.length;
+        const pct   = ((removed.size + added.size) / total * 100).toFixed(1);
+        status.textContent =
+            `✅ Done — ${removed.size} removed · ${added.size} added · ${pct}% changed`;
+
+        setTimeout(() => setProgress(0), 1200);
+
+    } catch (err) {
+        status.textContent = `❌ Error: ${err.message}`;
+        console.error(err);
+        setProgress(0);
+    } finally {
+        btn.disabled = false;
+    }
+}
+</script>
+</body>
+</html>
