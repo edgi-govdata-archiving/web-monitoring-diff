@@ -69,7 +69,7 @@ LABEL org.opencontainers.image.title="web-monitoring-diff" \
       org.opencontainers.image.url="https://envirodatagov.org/" \
       org.opencontainers.image.source="https://github.com/edgi-govdata-archiving/web-monitoring-diff" \
       org.opencontainers.image.documentation="https://web-monitoring-diff.readthedocs.io/" \
-      org.opencontainers.image.licenses="GPL-3.0-only" \
+      org.opencontainers.image.licenses="GPL-3.0-only"
 
 COPY --from=dev /usr/local/lib/ /usr/local/lib/
 COPY --from=dev /usr/local/bin/ /usr/local/bin/
