@@ -111,6 +111,13 @@ jobs:
       - run: |
           docker build -t envirodgi/web-monitoring-diff:${CIRCLE_SHA1} .
       - run:
+          name: Smoketest
+          command: |
+            docker run --rm -p 8888:80 envirodgi/web-monitoring-diff:${CIRCLE_SHA1} &
+            curl --fail-with-body 'http://localhost:8888/'
+            curl --fail-with-body 'http://localhost:8888/identical_bytes?a=https://example.com/&b=https://example.com/'
+            kill %1
+      - run:
           name: Save Image
           command: |
             mkdir /tmp/workspace
