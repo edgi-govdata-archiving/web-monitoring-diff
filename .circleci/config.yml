@@ -107,6 +107,9 @@ jobs:
     machine:
       image: ubuntu-2004:2024.11.1
     steps:
+      - run:
+          name: Upgrade curl
+          command: sudo apt-get update && sudo apt-get install -y curl
       - checkout
       - run: |
           docker build -t envirodgi/web-monitoring-diff:${CIRCLE_SHA1} .
