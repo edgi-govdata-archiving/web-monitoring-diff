@@ -105,7 +105,7 @@ jobs:
 
   build_docker:
     machine:
-      image: ubuntu-2004:202111-02
+      image: ubuntu-2004:2024.11.1
     steps:
       - checkout
       - run: |
