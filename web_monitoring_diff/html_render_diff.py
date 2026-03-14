@@ -155,6 +155,8 @@ no_change_children_tags = set([
     'tr',
     'ul',
 ])
+def breaks_change_element(name):
+    return name in block_level_tags or name in change_boundary_tags
 
 # TODO: do we need special treatment for `<picture>`? Kind of like `<img>`
 
@@ -1275,7 +1277,7 @@ def merge_changes(change_chunks, doc, tag_type='ins'):
             name = chunk.split('>', 1)[0].split(None, 1)[0].strip('<>/')
             # Also treat `a` tags as block in this context, because they *can*
             # contain block elements, like `h1`, etc.
-            is_block = name in block_level_tags or name in ('a','label')
+            is_block = breaks_change_element(name)
 
             if chunk[1] == '/':
                 if depth > 0:
@@ -1535,7 +1537,7 @@ def merge_change_groups(change_chunks, doc, tag_type=None):
             name = chunk.split('>', 1)[0].split(None, 1)[0].strip('<>/')
             # Also treat `a` tags as block in this context, because they *can*
             # contain block elements, like `h1`, etc.
-            is_block = name in block_level_tags or name in ('a', 'label')
+            is_block = breaks_change_element(name)
 
             if chunk[1] == '/':
                 if depth > 0:
