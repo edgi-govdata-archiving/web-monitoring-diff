@@ -106,6 +106,7 @@ jobs:
   build_docker:
     machine:
       image: ubuntu-2404:2025.09.1
+      docker_layer_caching: true
     steps:
       - run:
           name: Upgrade curl
