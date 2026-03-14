@@ -21,13 +21,10 @@ commands:
     steps:
       - restore_cache:
           keys:
-            - cache-v4-{{ arch }}-python<< parameters.python-version >>-<< parameters.chardet >>-{{ checksum "requirements.txt" }}-{{ checksum "requirements-server.txt" }}-{{ checksum "requirements-dev.txt" }}-{{ checksum "requirements-experimental.txt" }}-{{ checksum "requirements-docs.txt" }}
-            - cache-v4-{{ arch }}-python<< parameters.python-version >>-{{ checksum "requirements.txt" }}-{{ checksum "requirements-server.txt" }}-{{ checksum "requirements-dev.txt" }}-{{ checksum "requirements-experimental.txt" }}-{{ checksum "requirements-docs.txt" }}
-            - cache-v4-{{ arch }}-python<< parameters.python-version >>-{{ checksum "requirements.txt" }}-{{ checksum "requirements-server.txt" }}-{{ checksum "requirements-dev.txt" }}-{{ checksum "requirements-experimental.txt" }}-
-            - cache-v4-{{ arch }}-python<< parameters.python-version >>-{{ checksum "requirements.txt" }}-{{ checksum "requirements-server.txt" }}-{{ checksum "requirements-dev.txt" }}-
-            - cache-v4-{{ arch }}-python<< parameters.python-version >>-{{ checksum "requirements.txt" }}-{{ checksum "requirements-server.txt" }}-
-            - cache-v4-{{ arch }}-python<< parameters.python-version >>-{{ checksum "requirements.txt" }}-
-            - cache-v4-{{ arch }}-python<< parameters.python-version >>-
+            - cache-v5-{{ arch }}-python<< parameters.python-version >>-<< parameters.chardet >>-{{ checksum "pyproject.toml" }}-{{ checksum "requirements-experimental.txt" }}
+            - cache-v5-{{ arch }}-python<< parameters.python-version >>-{{ checksum "pyproject.toml" }}-{{ checksum "requirements-experimental.txt" }}
+            - cache-v5-{{ arch }}-python<< parameters.python-version >>-{{ checksum "pyproject.toml" }}-
+            - cache-v5-{{ arch }}-python<< parameters.python-version >>-
 
       - run:
           name: Install Dependencies
@@ -55,10 +52,10 @@ commands:
             - run:
                 command: |
                   . ~/venv/bin/activate
-                  pip install -r requirements-docs.txt
+                  pip install .[docs]
 
       - save_cache:
-          key: cache-v4-{{ arch }}-python<< parameters.python-version >>-<< parameters.chardet >>-{{ checksum "requirements.txt" }}-{{ checksum "requirements-server.txt" }}-{{ checksum "requirements-dev.txt" }}-{{ checksum "requirements-experimental.txt" }}-{{ checksum "requirements-docs.txt" }}
+          key: cache-v5-{{ arch }}-python<< parameters.python-version >>-<< parameters.chardet >>-{{ checksum "pyproject.toml" }}-{{ checksum "requirements-experimental.txt" }}
           paths:
             - ~/venv
 

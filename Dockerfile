@@ -30,12 +30,8 @@ WORKDIR /app
 
 RUN pip install --upgrade pip
 RUN pip install cchardet
-# Copy the requirements.txt alone into the container at /app
-# so that they can be cached more aggressively than the rest of the source.
-ADD requirements.txt /app
-RUN pip install --trusted-host pypi.python.org -r requirements.txt
-ADD requirements-server.txt /app
-RUN pip install --trusted-host pypi.python.org -r requirements-server.txt
+# Install experimental dependencies first to cache them. Core dependencies
+# are handled by pyproject.toml during the package installation.
 ADD requirements-experimental.txt /app
 RUN pip install --trusted-host pypi.python.org -r requirements-experimental.txt
 
