@@ -40,7 +40,7 @@ RUN SETUPTOOLS_SCM_PRETEND_VERSION=0.0.0 pip install ".[server,experimental]"
 # Copy the rest of the source.
 ADD . /app
 # ...and install!
-RUN pip install .[server] --no-binary lxml
+RUN pip install ".[server]" --no-binary lxml
 
 
 ##

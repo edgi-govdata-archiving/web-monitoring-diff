@@ -19,10 +19,7 @@ build:
     post_install:
       # Use job hooks so we can specify the `--no-binary` option, which is not
       # possible in the `python.install` section of this config file.
-      - python -m pip install '.[server,docs]' --no-binary lxml --upgrade --upgrade-strategy only-if-needed
-      # Experimental dependencies are not supported in standard package
-      # metadata, so we need to pip install them directly.
-      - python -m pip install --exists-action=w ".[experimental]"
+      - python -m pip install ".[server,docs,experimental]" --no-binary lxml --upgrade --upgrade-strategy only-if-needed --exists-action=w
 
 sphinx:
   configuration: docs/source/conf.py
