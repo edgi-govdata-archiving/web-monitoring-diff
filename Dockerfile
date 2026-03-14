@@ -34,8 +34,10 @@ RUN pip install cchardet
 ADD pyproject.toml README.md /app/
 # Create the folder where the version file needs to be written
 RUN mkdir -p /app/web_monitoring_diff
-# Set an environment variable to bypass the Git version check during dependency install
-RUN SETUPTOOLS_SCM_PRETEND_VERSION=0.0.0 pip install ".[server,experimental]"
+# Set an environment variable to bypass the Git version check during dependency install.
+# Note: This dummy version (0.0.0) is temporary. The second install step later in 
+# the Dockerfile (lines 43-45) will overwrite and correct the version number.
+RUN SETUPTOOLS_SCM_PRETEND_VERSION=0.0.0 pip install ".[server,experimental]" --no-binary lxml
 
 # Copy the rest of the source.
 ADD . /app
