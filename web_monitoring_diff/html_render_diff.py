@@ -99,6 +99,7 @@ block_level_tags = set([
     'ins',
     'slot',
 ])
+change_boundary_tags=set(['a','label'])
 
 # "void" in the HTML sense -- these tags do not having a closing tag
 void_tags = (
