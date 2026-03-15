@@ -52,13 +52,13 @@ Installation
 
   .. code-block:: bash
 
-      pip install .[server,dev] --no-binary lxml
+      pip install ".[server,dev]" --no-binary lxml
 
 3. **(Optional) Install experimental diffs.** Some additional types of diffs are considered “experimental” — they may be new and still have lots of edge cases, may not be publicly available via PyPI or another package server, or may have any number of other issues. To install them, run:
 
   .. code-block:: bash
 
-    pip install -r requirements-experimental.txt
+    pip install ".[experimental]"
 
 
 .. _pyenv: https://github.com/pyenv/pyenv

@@ -69,7 +69,7 @@ This package was originally built as a component of EDGI’s [Web Monitoring Pro
 3. (Optional) Install experimental diffs. Some additional types of diffs are considered “experimental” — they may be new and still have lots of edge cases, may not be publicly available via PyPI or another package server, or may have any number of other issues. To install them, run:
 
     ```sh
-    pip install -r requirements-experimental.txt
+    pip install ".[experimental]"
     ```
 
 4. (Optional) If you are using the diff *server* and want high-performance character encoding detection, install [`cchardet`](https://pypi.org/project/cchardet). Note that it only supports Python 3.10 and *earlier* at the time of this writing. An alpha release supports up to Python 3.12.
@@ -218,7 +218,7 @@ First, make sure you have an appropriate Python version and the necessary system
 3. Install additional dependencies for experimental features:
 
     ```sh
-    $ pip install -r requirements-experimental.txt
+    $ pip install ".[experimental]"
     ```
 
 4. Make sure it works without errors by running a python interpreter and importing the package:
@@ -255,6 +255,7 @@ Thanks to the following people for all their contributions! This project depends
 | [💻](# "Code") | [Stephen Buckley](https://github.com/StephenAlanBuckley) |
 | [💻](# "Code") [📖](# "Documentation") [📋](# "Organizer") | [Ray Cha](https://github.com/weatherpattern) |
 | [💻](# "Code") [⚠️](# "Tests") | [Janak Raj Chadha](https://github.com/janakrajchadha) |
+| [💻](# "Code") | [Derzan Chiang](https://github.com/MiTo0o) |
 | [💻](# "Code") | [Autumn Coleman](https://github.com/AutumnColeman) |
 | [📖](# "Documentation") | [Beckett Frey](https://github.com/BeckettFrey) |
 | [💻](# "Code") | [Luming Hao](https://github.com/lh00000000) |

@@ -37,7 +37,7 @@ def diff(a_text, b_text):
 
     You can also install all experimental differs with::
 
-        $ pip install -r requirements-experimental.txt
+        $ pip install ".[server,experimental]"
 
     Parameters
     ----------

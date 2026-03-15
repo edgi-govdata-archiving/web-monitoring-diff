@@ -41,19 +41,19 @@ WORKDIR /app
 
 RUN pip install --upgrade pip
 RUN pip install cchardet
-# Copy the requirements.txt alone into the container at /app
-# so that they can be cached more aggressively than the rest of the source.
-ADD requirements.txt /app
-RUN pip install --trusted-host pypi.python.org -r requirements.txt
-ADD requirements-server.txt /app
-RUN pip install --trusted-host pypi.python.org -r requirements-server.txt
-ADD requirements-experimental.txt /app
-RUN pip install --trusted-host pypi.python.org -r requirements-experimental.txt
+
+ADD pyproject.toml README.md /app/
+# Create the folder where the version file needs to be written
+RUN mkdir -p /app/web_monitoring_diff
+# Set an environment variable to bypass the Git version check during dependency install.
+# Note: This dummy version (0.0.0) is temporary. The second install step later in 
+# the Dockerfile (lines 43-45) will overwrite and correct the version number.
+RUN SETUPTOOLS_SCM_PRETEND_VERSION=0.0.0 pip install ".[server,experimental]" --no-binary lxml
 
 # Copy the rest of the source.
 ADD . /app
 # ...and install!
-RUN pip install .[server] --no-binary lxml
+RUN pip install ".[server]" --no-binary lxml
 
 
 ##

@@ -5,6 +5,8 @@ Release History
 In Development
 --------------
 
+- Internals: update package metadata to use modern `pyproject.toml`. (:issue:`224`)
+
 - Fix XML prolog detection in diff server. This could occasionally have inferred character encoding in an XML document that was inaccurate. (:issue:`209`)
 
 - Add ``MAX_DIFFS_PER_WORKER`` environment variable for diff server configuration. When set to a positive integer, a worker process that handles running the actual diff will be restarted after running this many diffs (the number of workers can be controlled with ``DIFFER_PARALLELISM``, which is not new). If ``0`` or not set, workers will only be restarted if they crash. Setting this appropriately can help keep resources within limits and prevent eventual hangs or crashes. (:issue:`210`)

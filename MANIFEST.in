@@ -1,3 +1,0 @@
-include versioneer.py
-include web_monitoring_diff/_version.py
-include web_monitoring_diff/example_data/*
