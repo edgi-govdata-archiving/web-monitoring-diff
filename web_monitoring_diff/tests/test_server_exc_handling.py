@@ -430,17 +430,24 @@ class DiffingServerResponseSizeTest(DiffingServerTestCase):
 
 class BrokenProcessPoolExecutor(concurrent.futures.Executor):
     "Fake process pool that only raises BrokenProcessPool exceptions."
-    submit_count = 0
 
-    def __init__(max_workers=None, mp_context=None, initializer=None, initargs=()):
+    def __init__(self, delay=0, max_workers=None, mp_context=None, initializer=None, initargs=()):
+        self.submit_count = 0
+        self.delay = delay
         return super().__init__()
 
     def submit(self, fn, *args, **kwargs):
         self.submit_count += 1
         result = concurrent.futures.Future()
-        result.set_exception(BrokenProcessPool(
-            'This pool is broken, yo'
-        ))
+        if getattr(self, 'delay', 0) > 0:
+            import time
+            import threading
+            def set_error():
+                time.sleep(self.delay)
+                result.set_exception(BrokenProcessPool('This pool is broken, yo'))
+            threading.Thread(target=set_error).start()
+        else:
+            result.set_exception(BrokenProcessPool('This pool is broken, yo'))
         return result
 
 
@@ -492,7 +499,7 @@ class ExecutionPoolTestCase(DiffingServerTestCase):
         # a real one that will succeed afterward.
         executor_resets = 0
         good_executor = ProcessPoolExecutor(1)
-        bad_executor = BrokenProcessPoolExecutor()
+        bad_executor = BrokenProcessPoolExecutor(delay=0.1)
         def get_executor(self, reset=False):
             nonlocal executor_resets
             if reset:
