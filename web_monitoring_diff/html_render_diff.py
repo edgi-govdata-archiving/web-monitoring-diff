@@ -1261,7 +1261,7 @@ def merge_changes(change_chunks, doc, tag_type='ins'):
     # resulting token stream represents valid markup. Happily, that also means
     # we don't also have to do the expensive parse-then-serialize step later!
     depth = 0
-    current_content = None
+    current_content =[]
     for chunk in change_chunks:
         inline_tag = False
         inline_tag_name = None
@@ -1325,6 +1325,8 @@ def merge_changes(change_chunks, doc, tag_type='ins'):
                 else:
                     inline_tag = True
                     inline_tag_name = name
+                    tag_content = chunk.split('>', 1)[0].strip('<>')
+                    current_content.append(tag_content)
 
         if depth == 0:
             doc.append(f'<{tag_type} class="wm-diff">')
