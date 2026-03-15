@@ -15,6 +15,8 @@ In Development
 
 - The Docker image (https://hub.docker.com/r/envirodgi/web-monitoring-diff) now includes standardized labels from OCI (Open Containers Initiative). (:issue:`227`)
 
+- Explain environment variables in the actual docs. (:issue:`231`)
+
 
 Version 0.1.7 (2025-10-06)
 --------------------------
