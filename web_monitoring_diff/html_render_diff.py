@@ -638,14 +638,17 @@ def expand_tokens(tokens, equal=False):
 
     
 
+
+
 WHITESPACE_RE = re.compile(r'\s+', re.UNICODE)
 
 # Tags where whitespace must NOT be normalized
 PRESERVE_WHITESPACE_TAGS = {
-        "pre",
-        "code",
-        "textarea",
-    }
+    "pre",
+    "code",
+    "textarea",
+}
+
 SPECIAL_SPACES = {
     "\u00A0": " ",  # nbsp
     "\u2000": " ",
@@ -659,84 +662,90 @@ SPECIAL_SPACES = {
     "\u2008": " ",
     "\u2009": " ",
     "\u200A": " ",
-   }
+}
+
+
 def normalize_whitespace(text):
     if not text:
         return text
 
-    # convert special spaces to normal space
+    # Convert special spaces to normal space
     for s, replacement in SPECIAL_SPACES.items():
         text = text.replace(s, replacement)
 
-    # collapse whitespace sequences
+    # Collapse whitespace sequences
     text = WHITESPACE_RE.sub(" ", text)
 
     return text.strip()
 
+
 class DiffToken(str):
-    """ Represents a diffable token, generally a word that is displayed to
-    the user.  Opening tags are attached to this token when they are
+    """Represents a diffable token, generally a word that is displayed to
+    the user. Opening tags are attached to this token when they are
     adjacent (pre_tags) and closing tags that follow the word
-    (post_tags).  Some exceptions occur when there are empty tags
+    (post_tags). Some exceptions occur when there are empty tags
     adjacent to a word, so there may be close tags in pre_tags, or
     open tags in post_tags.
 
     We also keep track of whether the word was originally followed by
     whitespace, even though we do not want to treat the word as
-    equivalent to a similar word that does not have a trailing
-    space."""
+    equivalent to a similar word that does not have a trailing space.
+    """
 
     # When this is true, the token will be eliminated from the
     # displayed diff if no change has occurred:
     hide_when_equal = False
-    preserve_ws = False
-
-    if tag_name in PRESERVE_WHITESPACE_TAGS:
-        preserve_ws = True
 
     def __new__(cls, text, pre_tags=None, post_tags=None,
-                trailing_whitespace="", preserve_ws):
+                trailing_whitespace="", preserve_ws=False):  # FIX 1: preserve_ws moved to end with default value
         obj = str.__new__(cls, text)
         obj.pre_tags = pre_tags or []
         obj.post_tags = post_tags or []
         obj.trailing_whitespace = trailing_whitespace
-        obj.preserve_ws = preserve_ws
+        obj.preserve_ws = preserve_ws  # FIX 2: assigned from parameter, not from stray class-level code
         return obj
 
-    def __eq__(self, other):
-    if not isinstance(other, DiffToken):
-        return False
+    def __eq__(self, other):  # FIX 3: corrected indentation — now properly inside the class
+        if not isinstance(other, DiffToken):
+            return False
 
-    if getattr(self, "preserve_ws", False) or getattr(other, "preserve_ws", False):
-        return str(self) == str(other)
+        if getattr(self, "preserve_ws", False) or getattr(other, "preserve_ws", False):
+            return str(self) == str(other)
 
-    return normalize_whitespace(str(self)) == normalize_whitespace(str(other))
+        return normalize_whitespace(str(self)) == normalize_whitespace(str(other))
 
     def __repr__(self):
-        return 'DiffToken(%s, %r, %r, %r)' % (str.__repr__(self), self.pre_tags,
-                                              self.post_tags, self.trailing_whitespace)
+        return 'DiffToken(%s, %r, %r, %r)' % (
+            str.__repr__(self),
+            self.pre_tags,
+            self.post_tags,
+            self.trailing_whitespace,
+        )
 
-    def __hash__(self):
-    if self.preserve_ws:
-        return hash(str(self))
-    return hash(normalize_whitespace(str(self)))
+    def __hash__(self):  # FIX 4: corrected indentation — now properly inside the class
+        if self.preserve_ws:
+            return hash(str(self))
+        return hash(normalize_whitespace(str(self)))
 
     def html(self):
         return str(self)
 
 
 class tag_token(DiffToken):
-
-    """ Represents a token that is actually a tag.  Currently this is just
+    """Represents a token that is actually a tag. Currently this is just
     the <img> tag, which takes up visible space just like a word but
-    is only represented in a document by a tag.  """
+    is only represented in a document by a tag.
+    """
 
     def __new__(cls, tag, data, html_repr, comparator, pre_tags=None,
                 post_tags=None, trailing_whitespace=""):
-        obj = DiffToken.__new__(cls, "%s: %s" % (type, data),
-                            pre_tags=pre_tags,
-                            post_tags=post_tags,
-                            trailing_whitespace=trailing_whitespace)
+        obj = DiffToken.__new__(
+            cls,
+            "%s: %s" % (tag, data),  # FIX 5: was `type` (builtin), should be `tag`
+            pre_tags=pre_tags,
+            post_tags=post_tags,
+            trailing_whitespace=trailing_whitespace,
+        )
         obj.tag = tag
         obj.data = data
         obj.html_repr = html_repr
@@ -744,47 +753,54 @@ class tag_token(DiffToken):
         return obj
 
     def __repr__(self):
-        return 'tag_token(%s, %s, html_repr=%s, post_tags=%r, pre_tags=%r, trailing_whitespace=%r)' % (
-            self.tag,
-            self.data,
-            self.html_repr,
-            self.pre_tags,
-            self.post_tags,
-            self.trailing_whitespace)
+        return (
+            'tag_token(%s, %s, html_repr=%s, post_tags=%r, pre_tags=%r, trailing_whitespace=%r)'
+            % (
+                self.tag,
+                self.data,
+                self.html_repr,
+                self.post_tags,
+                self.pre_tags,
+                self.trailing_whitespace,
+            )
+        )
 
     def html(self):
         return self.html_repr
 
 
 class href_token(DiffToken):
-    """ Represents the href in an anchor tag.  Unlike other words, we only
-    show the href when it changes.  """
+    """Represents the href in an anchor tag. Unlike other words, we only
+    show the href when it changes.
+    """
 
     hide_when_equal = True
 
     def __new__(cls, href, comparator, pre_tags=None,
                 post_tags=None, trailing_whitespace=""):
-        obj = DiffToken.__new__(cls, text=href,
-                                pre_tags=pre_tags,
-                                post_tags=post_tags,
-                                trailing_whitespace=trailing_whitespace)
+        obj = DiffToken.__new__(
+            cls,
+            text=href,
+            pre_tags=pre_tags,
+            post_tags=post_tags,
+            trailing_whitespace=trailing_whitespace,
+        )
         obj.comparator = comparator
         return obj
-    
-    def __eq__(self):
+
+    def __eq__(self, other):  # FIX 6: was missing `other` parameter entirely
         if self.comparator:
             return self.comparator.compare(str(self), str(other))
         return super().__eq__(other)
 
-      
-
-    
     def __hash__(self):
-         return super().__hash__()
-        
+        return super().__hash__()
+
     def html(self):
         return ' Link: %s' % self
 
+    
+    
 
 class UndiffableContentToken(DiffToken):
     pass
