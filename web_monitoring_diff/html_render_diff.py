@@ -636,6 +636,42 @@ def expand_tokens(tokens, equal=False):
         for post in token.post_tags:
             yield post
 
+     import re
+
+WHITESPACE_RE = re.compile(r'\s+', re.UNICODE)
+
+# Tags where whitespace must NOT be normalized
+PRESERVE_WHITESPACE_TAGS = {
+        "pre",
+        "code",
+        "textarea",
+    }
+SPECIAL_SPACES = {
+    "\u00A0": " ",  # nbsp
+    "\u2000": " ",
+    "\u2001": " ",
+    "\u2002": " ",
+    "\u2003": " ",
+    "\u2004": " ",
+    "\u2005": " ",
+    "\u2006": " ",
+    "\u2007": " ",
+    "\u2008": " ",
+    "\u2009": " ",
+    "\u200A": " ",
+   }
+def normalize_whitespace(text):
+    if not text:
+        return text
+
+    # convert special spaces to normal space
+    for s, replacement in SPECIAL_SPACES.items():
+        text = text.replace(s, replacement)
+
+    # collapse whitespace sequences
+    text = WHITESPACE_RE.sub(" ", text)
+
+    return text.strip()
 
 class DiffToken(str):
     """ Represents a diffable token, generally a word that is displayed to
@@ -653,59 +689,44 @@ class DiffToken(str):
     # When this is true, the token will be eliminated from the
     # displayed diff if no change has occurred:
     hide_when_equal = False
-
-    import re
-
-    WHITESPACE_RE = re.compile(r'\s+', re.UNICODE)
-
-    SPECIAL_SPACES = {
-        "\u00A0": " ",  # nbsp
-        "\u2000": " ",  # en quad
-        "\u2001": " ",  # em quad
-        "\u2002": " ",  # en space
-        "\u2003": " ",  # em space
-        "\u2004": " ",  # three-per-em
-        "\u2005": " ",  # four-per-em
-        "\u2006": " ",  # six-per-em
-        "\u2007": " ",  # figure space
-        "\u2008": " ",  # punctuation space
-        "\u2009": " ",  # thin space
-        "\u200A": " ",  # hair space
-     }
-
-    def normalize_whitespace(text):
-        if not text:
-            return text
+  
     
-        # convert fancy spaces to regular spaces
-        for s, replacement in SPECIAL_SPACES.items():
-            text = text.replace(s, replacement)
-    
-        # collapse whitespace
-        text = WHITESPACE_RE.sub(" ", text)
-    
-        return text.strip()
 
-    def __new__(cls, text, pre_tags=None, post_tags=None, trailing_whitespace=""):
+   
+  
+    class DiffToken(str):
+
+    preserve_ws = False
+
+    if tag_name in PRESERVE_WHITESPACE_TAGS:
+        preserve_ws = True
+
+    def __new__(cls, text, pre_tags=None, post_tags=None,
+                trailing_whitespace="", preserve_ws):
         obj = str.__new__(cls, text)
-
-        if pre_tags is not None:
-            obj.pre_tags = pre_tags
-        else:
-            obj.pre_tags = []
-
-        if post_tags is not None:
-            obj.post_tags = post_tags
-        else:
-            obj.post_tags = []
-
+        obj.pre_tags = pre_tags or []
+        obj.post_tags = post_tags or []
         obj.trailing_whitespace = trailing_whitespace
-
+        obj.preserve_ws = preserve_ws
         return obj
+
+    def __eq__(self, other):
+    if not isinstance(other, DiffToken):
+        return False
+
+    if getattr(self, "preserve_ws", False) or getattr(other, "preserve_ws", False):
+        return str(self) == str(other)
+
+    return normalize_whitespace(str(self)) == normalize_whitespace(str(other))
 
     def __repr__(self):
         return 'DiffToken(%s, %r, %r, %r)' % (str.__repr__(self), self.pre_tags,
                                               self.post_tags, self.trailing_whitespace)
+
+    def __hash__(self):
+    if self.preserve_ws:
+        return hash(str(self))
+    return hash(normalize_whitespace(str(self)))
 
     def html(self):
         return str(self)
@@ -756,19 +777,17 @@ class href_token(DiffToken):
                                 trailing_whitespace=trailing_whitespace)
         obj.comparator = comparator
         return obj
+    
+    def __eq__(self):
+        if self.comparator:
+            return self.comparator.compare(str(self), str(other))
+        return super().__eq__(other)
 
-    def __eq__(self, other):
-        # This equality check aims to apply specific rules to the contents of
-        # the href element solving false positive cases
-        if not isinstance(other, DiffToken):
-             return False
-          
-
-        return normalize_whitespace(str(self)) == normalize_whitespace(str(other))
+      
 
     
     def __hash__(self):
-        return hash(normalize_whitespace(str(self)))
+         return super().__hash__()
         
     def html(self):
         return ' Link: %s' % self
