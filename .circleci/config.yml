@@ -105,11 +105,28 @@ jobs:
 
   build_docker:
     machine:
-      image: ubuntu-2004:202111-02
+      image: ubuntu-2404:2025.09.1
+      docker_layer_caching: true
     steps:
+      - run:
+          name: Upgrade curl
+          command: sudo apt-get update && sudo apt-get install -y curl
       - checkout
       - run: |
           docker build -t envirodgi/web-monitoring-diff:${CIRCLE_SHA1} .
+      - run:
+          name: Smoketest
+          command: |
+            docker run --rm -p 8888:80 envirodgi/web-monitoring-diff:${CIRCLE_SHA1} &
+
+            # Give server a moment to start.
+            sleep 5
+
+            # Does it respond successfully to some basic requests?
+            curl --fail-with-body 'http://localhost:8888/'
+            curl --fail-with-body 'http://localhost:8888/identical_bytes?a=https://example.com/&b=https://example.com/'
+
+            kill %1
       - run:
           name: Save Image
           command: |
