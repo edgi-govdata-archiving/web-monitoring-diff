@@ -28,7 +28,7 @@ dependencies = [
 [project.optional-dependencies]
 # Dependencies for the HTTP server.
 server = [
-    "chardet >=5.0.0,<6",
+    "chardet >=5.0.0,<8",
     "pycurl >=7.43,<8",
     "sentry-sdk[tornado] >=2.0.0,<3.0",
     "tornado >=6.0.0,<7",
