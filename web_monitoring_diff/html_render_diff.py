@@ -654,6 +654,38 @@ class DiffToken(str):
     # displayed diff if no change has occurred:
     hide_when_equal = False
 
+    import re
+
+    WHITESPACE_RE = re.compile(r'\s+', re.UNICODE)
+
+    SPECIAL_SPACES = {
+        "\u00A0": " ",  # nbsp
+        "\u2000": " ",  # en quad
+        "\u2001": " ",  # em quad
+        "\u2002": " ",  # en space
+        "\u2003": " ",  # em space
+        "\u2004": " ",  # three-per-em
+        "\u2005": " ",  # four-per-em
+        "\u2006": " ",  # six-per-em
+        "\u2007": " ",  # figure space
+        "\u2008": " ",  # punctuation space
+        "\u2009": " ",  # thin space
+        "\u200A": " ",  # hair space
+     }
+
+    def normalize_whitespace(text):
+        if not text:
+            return text
+    
+        # convert fancy spaces to regular spaces
+        for s, replacement in SPECIAL_SPACES.items():
+            text = text.replace(s, replacement)
+    
+        # collapse whitespace
+        text = WHITESPACE_RE.sub(" ", text)
+    
+        return text.strip()
+
     def __new__(cls, text, pre_tags=None, post_tags=None, trailing_whitespace=""):
         obj = str.__new__(cls, text)
 
@@ -728,15 +760,16 @@ class href_token(DiffToken):
     def __eq__(self, other):
         # This equality check aims to apply specific rules to the contents of
         # the href element solving false positive cases
-        if not isinstance(other, href_token):
-            return False
-        if self.comparator:
-            return self.comparator.compare(str(self), str(other))
-        return super().__eq__(other)
+        if not isinstance(other, DiffToken):
+             return False
+          
 
+        return normalize_whitespace(str(self)) == normalize_whitespace(str(other))
+
+    
     def __hash__(self):
-        return super().__hash__()
-
+        return hash(normalize_whitespace(str(self)))
+        
     def html(self):
         return ' Link: %s' % self
 
