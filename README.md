@@ -254,6 +254,7 @@ Thanks to the following people for all their contributions! This project depends
 | [💻](# "Code") | [Stephen Buckley](https://github.com/StephenAlanBuckley) |
 | [💻](# "Code") [📖](# "Documentation") [📋](# "Organizer") | [Ray Cha](https://github.com/weatherpattern) |
 | [💻](# "Code") [⚠️](# "Tests") | [Janak Raj Chadha](https://github.com/janakrajchadha) |
+| [💻](# "Code") | [Derzan Chiang](https://github.com/MiTo0o) |
 | [💻](# "Code") | [Autumn Coleman](https://github.com/AutumnColeman) |
 | [💻](# "Code") | [Luming Hao](https://github.com/lh00000000) |
 | [🤔](# "Ideas and Planning") | [Mike Hucka](https://github.com/mhucka) |
