@@ -636,7 +636,7 @@ def expand_tokens(tokens, equal=False):
         for post in token.post_tags:
             yield post
 
-     import re
+    
 
 WHITESPACE_RE = re.compile(r'\s+', re.UNICODE)
 
@@ -689,13 +689,6 @@ class DiffToken(str):
     # When this is true, the token will be eliminated from the
     # displayed diff if no change has occurred:
     hide_when_equal = False
-  
-    
-
-   
-  
-    class DiffToken(str):
-
     preserve_ws = False
 
     if tag_name in PRESERVE_WHITESPACE_TAGS:
