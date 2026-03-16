@@ -22,9 +22,10 @@ def diff(a_text, b_text):
 
         $ pip install git+https://github.com/anastasia/htmldiffer@develop
 
-    You can also install all experimental differs with::
+    You can also install all experimental differs by extracting the
+    ``requirements-experimental.txt`` file from this package and running::
 
-        $ pip install ".[experimental]"
+        $ pip install -r requirements-experimental.txt
 
     NOTE: this differ parses HTML in pure Python and can be very slow when
     using the standard, CPython interpreter. If you plan to use it in a

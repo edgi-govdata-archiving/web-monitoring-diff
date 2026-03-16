@@ -54,11 +54,14 @@ Installation
 
       pip install ".[server,dev]" --no-binary lxml
 
-3. **(Optional) Install experimental diffs.** Some additional types of diffs are considered “experimental” — they may be new and still have lots of edge cases, may not be publicly available via PyPI or another package server, or may have any number of other issues. To install them, run:
+3. **(Optional) Install experimental diffs.** Some additional types of diffs are considered “experimental” — they may be new and still have lots of edge cases, may not be publicly available via PyPI or another package server, or may have any number of other issues. Because they are not available via public package indexes you’ll need to install them manually.
+
+  To install via Pip, run:
 
   .. code-block:: bash
 
-    pip install ".[experimental]"
+    curl -O 'https://raw.githubusercontent.com/edgi-govdata-archiving/web-monitoring-diff/refs/heads/main/requirements-experimental.txt'
+    pip install -r requirements-experimental.txt
 
 
 .. _pyenv: https://github.com/pyenv/pyenv
