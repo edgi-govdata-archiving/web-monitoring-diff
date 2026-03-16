@@ -10,6 +10,7 @@ import tempfile
 from tornado.testing import AsyncHTTPTestCase, bind_unused_port
 from unittest.mock import patch
 import web_monitoring_diff.server.server as df
+from web_monitoring_diff.server.mock_http import MockResponse
 from web_monitoring_diff.exceptions import UndecodableContentError
 import web_monitoring_diff
 from tornado.escape import utf8
@@ -234,7 +235,7 @@ class DiffingServerExceptionHandlingTest(DiffingServerTestCase):
             assert response.code == 504
 
     def test_missing_params_caller_func(self):
-        response = df.MockResponse('http://example.org/', 'Whatever')
+        response = MockResponse('http://example.org/', 'Whatever')
         with self.assertRaises(KeyError):
             df.caller(mock_diffing_method, response, response)
 
@@ -603,7 +604,7 @@ def mock_tornado_request(fixture, headers=None):
     path = fixture_path(fixture)
     with open(path, 'rb') as f:
         body = f.read()
-        return df.MockResponse(f'file://{path}', body, headers)
+        return MockResponse(f'file://{path}', body, headers)
 
 
 # TODO: we may want to extract this to a support module
@@ -680,23 +681,23 @@ class MockAsyncHttpClient(AsyncHTTPClient):
 
 class MockResponderHeadersTest(unittest.TestCase):
     def test_pdf_extension(self):
-        response = df.MockResponse(f'file://{fixture_path("simple.pdf")}', '')
+        response = MockResponse(f'file://{fixture_path("simple.pdf")}', '')
         assert response.headers['Content-Type'] == 'application/pdf'
 
     def test_html_extension(self):
-        response = df.MockResponse(f'file://{fixture_path("unknown_encoding.html")}', '')
+        response = MockResponse(f'file://{fixture_path("unknown_encoding.html")}', '')
         assert response.headers['Content-Type'] == 'text/html'
 
     def test_txt_extension(self):
-        response = df.MockResponse(f'file://{fixture_path("empty.txt")}', '')
+        response = MockResponse(f'file://{fixture_path("empty.txt")}', '')
         assert response.headers['Content-Type'] == 'text/plain'
 
     def test_no_extension_should_assume_html(self):
-        response = df.MockResponse(f'file://{fixture_path("unknown_encoding")}', '')
+        response = MockResponse(f'file://{fixture_path("unknown_encoding")}', '')
         assert response.headers['Content-Type'] == 'text/html'
 
     def test_unknown_extension_should_assume_html(self):
-        response = df.MockResponse(f'file://{fixture_path("unknown_encoding.notarealextension")}', '')
+        response = MockResponse(f'file://{fixture_path("unknown_encoding.notarealextension")}', '')
         assert response.headers['Content-Type'] == 'text/html'
 
 

@@ -254,6 +254,7 @@ Thanks to the following people for all their contributions! This project depends
 | Contributions | Name |
 | ----: | :---- |
 | [📖](# "Documentation") | [aaxis-em](https://github.com/aaxis-em) |
+| [💻](# "Code") | [Adeel](https://github.com/Adeelp1) |
 | [💻](# "Code") [⚠️](# "Tests") [🚇](# "Infrastructure") [📖](# "Documentation") [💬](# "Answering Questions") [👀](# "Reviewer") | [Dan Allan](https://github.com/danielballan) |
 | [💻](# "Code") | [Vangelis Banos](https://github.com/vbanos) |
 | [💻](# "Code") [📖](# "Documentation") | [Chaitanya Prakash Bapat](https://github.com/ChaiBapchya) |
