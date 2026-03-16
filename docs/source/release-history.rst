@@ -2,6 +2,12 @@
 Release History
 ===============
 
+In Development
+--------------
+
+- Move mock request/response classes into a separate submodule of `server`. (:issue:`226`)
+
+
 Version 0.2.0 (2026-03-16)
 --------------------------
 
