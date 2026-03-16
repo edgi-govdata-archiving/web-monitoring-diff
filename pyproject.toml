@@ -73,6 +73,11 @@ build-backend = "hatchling.build"
 version.source = "vcs"
 build.hooks.vcs.version-file = "web_monitoring_diff/_version.py"
 
+[tool.hatch.build.targets.wheel.force-include]
+# Include experimental requirements file so people can reference it from
+# the installed package.
+"./requirements-experimental.txt" = "web_monitoring_diff/requirements-experimental.txt"
+
 # need this for git depenencies
 [tool.hatch.metadata]
 allow-direct-references = true
