@@ -42,7 +42,7 @@ WORKDIR /app
 RUN pip install --upgrade pip
 RUN pip install cchardet
 
-ADD pyproject.toml README.md /app/
+ADD pyproject.toml README.md requirements-experimental.txt /app/
 # Create the folder where the version file needs to be written
 RUN mkdir -p /app/web_monitoring_diff
 # Set an environment variable to bypass the Git version check during dependency
