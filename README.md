@@ -66,15 +66,21 @@ This package was originally built as a component of EDGI’s [Web Monitoring Pro
 
     **For local development,** make sure to do an editable installation instead. See [the “contributing” section](#contributing) below for more.
 
-3. (Optional) Install experimental diffs. Some additional types of diffs are considered “experimental” — they may be new and still have lots of edge cases, may not be publicly available via PyPI or another package server, or may have any number of other issues. To install them, run:
+3. (Optional) Install experimental diffs. Some additional types of diffs are considered “experimental” — they may be new and still have lots of edge cases, may not be publicly available via PyPI or another package server, or may have any number of other issues. Unfortunately, these packages cannot be listed as actual dependencies (they must be installed from git URLs, which do not have the same safety guarantees as most package indexes), so you’ll need to install them manually if you want them.
+
+    To install them with Pip, run:
 
     ```sh
-    pip install ".[experimental]"
+    curl -O 'https://raw.githubusercontent.com/edgi-govdata-archiving/web-monitoring-diff/refs/heads/main/requirements-experimental.txt'
+    pip install -r requirements-experimental.txt
     ```
 
-4. (Optional) If you are using the diff *server* and want high-performance character encoding detection, install [`cchardet`](https://pypi.org/project/cchardet). Note that it only supports Python 3.10 and *earlier* at the time of this writing. An alpha release supports up to Python 3.12.
+    If using a different package manager check the [`requirements-experimental.txt` file](./requirements-experimental.txt) and install each of the listed packages.
+
+4. (Optional) If you are using the diff *server* and want high-performance character encoding detection, install [`cchardet`](https://pypi.org/project/cchardet). Note that it only supports Python 3.10 at the time of this writing. An alpha release supports up to Python 3.12.
 
     ```sh
+    # In Python 3.10:
     pip install cchardet
 
     # Or, for Python 3.11 or 3.12:
@@ -218,7 +224,7 @@ First, make sure you have an appropriate Python version and the necessary system
 3. Install additional dependencies for experimental features:
 
     ```sh
-    $ pip install ".[experimental]"
+    $ pip install -r requirements-experimental.txt
     ```
 
 4. Make sure it works without errors by running a python interpreter and importing the package:

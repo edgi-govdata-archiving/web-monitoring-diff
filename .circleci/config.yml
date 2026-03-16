@@ -21,8 +21,9 @@ commands:
     steps:
       - restore_cache:
           keys:
-            - cache-v5-{{ arch }}-python<< parameters.python-version >>-<< parameters.chardet >>-{{ checksum "pyproject.toml" }}
-            - cache-v5-{{ arch }}-python<< parameters.python-version >>-{{ checksum "pyproject.toml" }}-
+            - cache-v5-{{ arch }}-python<< parameters.python-version >>-<< parameters.chardet >>-{{ checksum "pyproject.toml" }}-{{ checksum "requirements-experimental.txt" }}
+            - cache-v5-{{ arch }}-python<< parameters.python-version >>-<< parameters.chardet >>-{{ checksum "pyproject.toml" }}-
+            - cache-v5-{{ arch }}-python<< parameters.python-version >>-<< parameters.chardet >>-
             - cache-v5-{{ arch }}-python<< parameters.python-version >>-
 
       - run:
@@ -33,7 +34,7 @@ commands:
             # Ensure pip is up-to-date
             pip install --upgrade pip
             pip install ".[server,dev]" --no-binary lxml
-            pip install ".[experimental]"
+            pip install -r requirements-experimental.txt
 
       - when:
           condition: << parameters.chardet >>
@@ -54,7 +55,7 @@ commands:
                   pip install ".[docs]"
 
       - save_cache:
-          key: cache-v5-{{ arch }}-python<< parameters.python-version >>-<< parameters.chardet >>-{{ checksum "pyproject.toml" }}
+          key: cache-v5-{{ arch }}-python<< parameters.python-version >>-<< parameters.chardet >>-{{ checksum "pyproject.toml" }}-{{ checksum "requirements-experimental.txt" }}
           paths:
             - ~/venv
 

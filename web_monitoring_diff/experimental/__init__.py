@@ -11,7 +11,7 @@ of other issues.
 They are not installed by default, so calling them may raise an exception. To
 install them, use pip::
 
-    $ pip install ".[experimental]"
+    $ pip install -r requirements-experimental.txt
 
 Experimental modules are typically named by the package they wrap, and can be
 called with a function named ``diff``. For example:

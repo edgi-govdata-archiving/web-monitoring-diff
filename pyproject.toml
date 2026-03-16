@@ -50,10 +50,11 @@ docs = [
     "sphinx_rtd_theme ~=3.1.0",
 ]
 # Experimental Dependencies
-experimental = [
-    "htmldiffer @ git+https://github.com/anastasia/htmldiffer@develop",
-    "html-tree-diff @ git+https://github.com/danielballan/htmltreediff@customize"
-]
+# NOTE: experimental dependencies are all git URLs, so cannot be listed as
+# extras/optional dependencies (PyPI and most package indexes forbid them,
+# because they are dangerous to install from).
+# See `requirements-experimental.txt` for a list of them that you can easily
+# install with pip, or with a package manager that has pip emulation (e.g. uv).
 
 [project.urls]
 "Documentation" = "https://web-monitoring-diff.readthedocs.io/en/stable/"
@@ -71,6 +72,11 @@ build-backend = "hatchling.build"
 [tool.hatch]
 version.source = "vcs"
 build.hooks.vcs.version-file = "web_monitoring_diff/_version.py"
+
+[tool.hatch.build.targets.wheel.force-include]
+# Include experimental requirements file so people can reference it from
+# the installed package.
+"./requirements-experimental.txt" = "web_monitoring_diff/requirements-experimental.txt"
 
 # need this for git depenencies
 [tool.hatch.metadata]
