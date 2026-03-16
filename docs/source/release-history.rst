@@ -2,22 +2,56 @@
 Release History
 ===============
 
-In Development
---------------
+Version 0.2.0 (2026-03-16)
+--------------------------
 
-- Internals: update package metadata to use modern `pyproject.toml`. (:issue:`224`)
+Current versions of Python (3.10.x through 3.15.0a7) are finally supported in this release of web-monitoring-diff! Please note this release also requires Python 3.10.0 at a minimum.
+
+There are number of other notable changes and new features:
+
+
+Breaking Changes
+^^^^^^^^^^^^^^^^
+
+- The minimum required version of Python is now v3.10.0.
+
+- Sentry-sdk v2.x is required for the *server* module. Make sure this is compatible with other packages you are using, and if you are self-hosting your Sentry server, make sure it is compatible as well.
+
+- cChardet is now optional. In prior releases, the *server* module required cChardet, an extremely fast and accurate package for detecting text encoding. However, cChardet is not actively maintained and, does not support Python 3.11 and newer, and could be hard to install on some systems. By default, web-monitoring-diff now uses a slower, better-supported version of chardet, but will automatically use cChardet if you install it alongside web-monitoring-diff.
+
+
+Features
+^^^^^^^^
+
+- Use the new ``MAX_DIFFS_PER_WORKER`` environment variable to restart worker processes that perform the actual diffs in the diff server.
+
+  When set to a positive integer, the server will restart a worker processes after it has performed this many diffs (the number of workers can be controlled with ``DIFFER_PARALLELISM``, which is not new). If ``0`` or not set, workers will only be restarted if they crash. Setting this appropriately can help keep resources within limits and prevent eventual hangs or crashes. (:issue:`210`)
+
+
+Fixes
+^^^^^
 
 - Fix XML prolog detection in diff server. This could occasionally have inferred character encoding in an XML document that was inaccurate. (:issue:`209`)
 
-- Add ``MAX_DIFFS_PER_WORKER`` environment variable for diff server configuration. When set to a positive integer, a worker process that handles running the actual diff will be restarted after running this many diffs (the number of workers can be controlled with ``DIFFER_PARALLELISM``, which is not new). If ``0`` or not set, workers will only be restarted if they crash. Setting this appropriately can help keep resources within limits and prevent eventual hangs or crashes. (:issue:`210`)
 
-- The diff server now requires Sentry 2.x for error tracking.
+Docs & Internals
+^^^^^^^^^^^^^^^^
 
-- The minimum required Python version is now 3.10.
+- The documentation now has a :doc:`“configuration” page <configuration>` that describes all the environment variables you can use to configure the various diff algorithms and the server. (:issue:`231`)
+
+- Package metadata is now managed using the modern `pyproject.toml` format. (:issue:`224`)
 
 - The Docker image (https://hub.docker.com/r/envirodgi/web-monitoring-diff) now includes standardized labels from OCI (Open Containers Initiative). (:issue:`227`)
 
-- Explain environment variables in the actual docs. (:issue:`231`)
+
+New Contributors
+^^^^^^^^^^^^^^^^
+
+- `aaxis-em <https://github.com/aaxis-em>`_
+
+- `Beckett Frey <https://github.com/BeckettFrey>`_
+
+- `Derzan Chiang <https://github.com/MiTo0o>`_
 
 
 Version 0.1.7 (2025-10-06)
