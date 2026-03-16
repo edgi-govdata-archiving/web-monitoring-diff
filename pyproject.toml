@@ -51,7 +51,7 @@ docs = [
 ]
 # Experimental Dependencies
 # NOTE: experimental dependencies are all git URLs, so cannot be listed as
-# extras/optional dependencies (PyPI and most package indexes forbit them,
+# extras/optional dependencies (PyPI and most package indexes forbid them,
 # because they are dangerous to install from).
 # See `requirements-experimental.txt` for a list of them that you can easily
 # install with pip, or with a package manager that has pip emulation (e.g. uv).
