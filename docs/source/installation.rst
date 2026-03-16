@@ -63,6 +63,8 @@ Installation
     curl -O 'https://raw.githubusercontent.com/edgi-govdata-archiving/web-monitoring-diff/refs/heads/main/requirements-experimental.txt'
     pip install -r requirements-experimental.txt
 
+  If using a different package manager, check the `requirements-experimental.txt file <https://github.com/edgi-govdata-archiving/web-monitoring-diff/blob/main/requirements-experimental.txt>`_ and install each of the listed packages.
+
 
 .. _pyenv: https://github.com/pyenv/pyenv
 .. _conda: https://docs.conda.io/en/latest/
