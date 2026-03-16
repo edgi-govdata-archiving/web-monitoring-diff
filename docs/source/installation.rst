@@ -65,7 +65,22 @@ Installation
 
   If using a different package manager, check the `requirements-experimental.txt file <https://github.com/edgi-govdata-archiving/web-monitoring-diff/blob/main/requirements-experimental.txt>`_ and install each of the listed packages.
 
+4. **(Optional) Install cChardet.** If you are using the diff *server* and want high-performance character encoding detection, install `cchardet`_. Note that it only supports Python 3.10 at the time of this writing. An alpha release supports up to Python 3.12. Its current maintenance status is unclear.
+
+  In Python 3.10:
+
+  .. code-block:: bash
+
+    pip install cchardet
+
+  In Python 3.11 or 3.12:
+
+  .. code-block:: bash
+
+    pip install cchardet==2.2.0a2
+
 
 .. _pyenv: https://github.com/pyenv/pyenv
 .. _conda: https://docs.conda.io/en/latest/
 .. _Homebrew: https://brew.sh/
+.. _cchardet: https://pypi.org/project/cchardet
