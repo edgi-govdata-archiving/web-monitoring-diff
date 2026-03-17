@@ -66,15 +66,21 @@ This package was originally built as a component of EDGI’s [Web Monitoring Pro
 
     **For local development,** make sure to do an editable installation instead. See [the “contributing” section](#contributing) below for more.
 
-3. (Optional) Install experimental diffs. Some additional types of diffs are considered “experimental” — they may be new and still have lots of edge cases, may not be publicly available via PyPI or another package server, or may have any number of other issues. To install them, run:
+3. (Optional) Install experimental diffs. Some additional types of diffs are considered “experimental” — they may be new and still have lots of edge cases, may not be publicly available via PyPI or another package server, or may have any number of other issues. Unfortunately, these packages cannot be listed as actual dependencies (they must be installed from git URLs, which do not have the same safety guarantees as most package indexes), so you’ll need to install them manually if you want them.
+
+    To install them with Pip, run:
 
     ```sh
+    curl -O 'https://raw.githubusercontent.com/edgi-govdata-archiving/web-monitoring-diff/refs/heads/main/requirements-experimental.txt'
     pip install -r requirements-experimental.txt
     ```
 
-4. (Optional) If you are using the diff *server* and want high-performance character encoding detection, install [`cchardet`](https://pypi.org/project/cchardet). Note that it only supports Python 3.10 and *earlier* at the time of this writing. An alpha release supports up to Python 3.12.
+    If using a different package manager, check the [`requirements-experimental.txt` file](./requirements-experimental.txt) and install each of the listed packages.
+
+4. (Optional) If you are using the diff *server* and want high-performance character encoding detection, install [`cchardet`](https://pypi.org/project/cchardet). Note that it only supports Python 3.10 at the time of this writing. An alpha release supports up to Python 3.12. Its current maintenance status is unclear.
 
     ```sh
+    # In Python 3.10:
     pip install cchardet
 
     # Or, for Python 3.11 or 3.12:
@@ -247,6 +253,8 @@ Thanks to the following people for all their contributions! This project depends
 <!-- ALL-CONTRIBUTORS-LIST:START -->
 | Contributions | Name |
 | ----: | :---- |
+| [📖](# "Documentation") | [aaxis-em](https://github.com/aaxis-em) |
+| [💻](# "Code") | [Adeel](https://github.com/Adeelp1) |
 | [💻](# "Code") [⚠️](# "Tests") [🚇](# "Infrastructure") [📖](# "Documentation") [💬](# "Answering Questions") [👀](# "Reviewer") | [Dan Allan](https://github.com/danielballan) |
 | [💻](# "Code") | [Vangelis Banos](https://github.com/vbanos) |
 | [💻](# "Code") [📖](# "Documentation") | [Chaitanya Prakash Bapat](https://github.com/ChaiBapchya) |
@@ -254,7 +262,9 @@ Thanks to the following people for all their contributions! This project depends
 | [💻](# "Code") | [Stephen Buckley](https://github.com/StephenAlanBuckley) |
 | [💻](# "Code") [📖](# "Documentation") [📋](# "Organizer") | [Ray Cha](https://github.com/weatherpattern) |
 | [💻](# "Code") [⚠️](# "Tests") | [Janak Raj Chadha](https://github.com/janakrajchadha) |
+| [💻](# "Code") | [Derzan Chiang](https://github.com/MiTo0o) |
 | [💻](# "Code") | [Autumn Coleman](https://github.com/AutumnColeman) |
+| [📖](# "Documentation") | [Beckett Frey](https://github.com/BeckettFrey) |
 | [💻](# "Code") | [Luming Hao](https://github.com/lh00000000) |
 | [🤔](# "Ideas and Planning") | [Mike Hucka](https://github.com/mhucka) |
 | [💻](# "Code") | [Stuart Lynn](https://github.com/stuartlynn) |
@@ -272,7 +282,7 @@ Thanks to the following people for all their contributions! This project depends
 
 ## License & Copyright
 
-Copyright (C) 2017-2025 Environmental Data and Governance Initiative (EDGI)
+Copyright (C) 2017-2026 Environmental Data and Governance Initiative (EDGI)
 
 This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, version 3.0.
 

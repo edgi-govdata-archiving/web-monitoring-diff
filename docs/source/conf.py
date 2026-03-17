@@ -18,7 +18,7 @@
 # -- Project information -----------------------------------------------------
 
 project = 'web-monitoring-diff'
-copyright = '2017-2025, Environmental Data & Governance Initiative'
+copyright = '2017-2026, Environmental Data & Governance Initiative'
 author = 'Environmental Data & Governance Initiative'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -60,7 +60,7 @@ extensions = [
 # Generate the API documentation when building
 autosummary_generate = True
 numpydoc_show_class_members = False
-autodoc_mock_imports = ['html5_parser', 'pycurl', 'sentry']
+autodoc_mock_imports = ['html5_parser', 'htmldiffer', 'htmltreediff', 'pycurl', 'sentry']
 numpydoc_xref_param_type = True
 numpydoc_xref_ignore = {'type', 'optional', 'default'}
 
@@ -82,7 +82,6 @@ intersphinx_mapping = {
     'python': ('https://docs.python.org/3/', None),
     'numpy': ('https://numpy.org/doc/stable/', None),
     'scipy': ('https://docs.scipy.org/doc/scipy/', None),
-    'pandas': ('https://pandas.pydata.org/pandas-docs/stable', None),
     'matplotlib': ('https://matplotlib.org/stable/', None),
 }
 

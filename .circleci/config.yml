@@ -21,12 +21,9 @@ commands:
     steps:
       - restore_cache:
           keys:
-            - cache-v5-{{ arch }}-python<< parameters.python-version >>-<< parameters.chardet >>-{{ checksum "requirements.txt" }}-{{ checksum "requirements-server.txt" }}-{{ checksum "requirements-dev.txt" }}-{{ checksum "requirements-experimental.txt" }}-{{ checksum "requirements-docs.txt" }}
-            - cache-v5-{{ arch }}-python<< parameters.python-version >>-{{ checksum "requirements.txt" }}-{{ checksum "requirements-server.txt" }}-{{ checksum "requirements-dev.txt" }}-{{ checksum "requirements-experimental.txt" }}-{{ checksum "requirements-docs.txt" }}
-            - cache-v5-{{ arch }}-python<< parameters.python-version >>-{{ checksum "requirements.txt" }}-{{ checksum "requirements-server.txt" }}-{{ checksum "requirements-dev.txt" }}-{{ checksum "requirements-experimental.txt" }}-
-            - cache-v5-{{ arch }}-python<< parameters.python-version >>-{{ checksum "requirements.txt" }}-{{ checksum "requirements-server.txt" }}-{{ checksum "requirements-dev.txt" }}-
-            - cache-v5-{{ arch }}-python<< parameters.python-version >>-{{ checksum "requirements.txt" }}-{{ checksum "requirements-server.txt" }}-
-            - cache-v5-{{ arch }}-python<< parameters.python-version >>-{{ checksum "requirements.txt" }}-
+            - cache-v5-{{ arch }}-python<< parameters.python-version >>-<< parameters.chardet >>-{{ checksum "pyproject.toml" }}-{{ checksum "requirements-experimental.txt" }}
+            - cache-v5-{{ arch }}-python<< parameters.python-version >>-<< parameters.chardet >>-{{ checksum "pyproject.toml" }}-
+            - cache-v5-{{ arch }}-python<< parameters.python-version >>-<< parameters.chardet >>-
             - cache-v5-{{ arch }}-python<< parameters.python-version >>-
 
       - run:
@@ -36,7 +33,7 @@ commands:
             . ~/venv/bin/activate
             # Ensure pip is up-to-date
             pip install --upgrade pip
-            pip install .[server,dev] --no-binary lxml
+            pip install ".[server,dev]" --no-binary lxml
             pip install -r requirements-experimental.txt
 
       - when:
@@ -55,16 +52,19 @@ commands:
             - run:
                 command: |
                   . ~/venv/bin/activate
-                  pip install -r requirements-docs.txt
+                  pip install ".[docs]"
 
       - save_cache:
-          key: cache-v5-{{ arch }}-python<< parameters.python-version >>-<< parameters.chardet >>-{{ checksum "requirements.txt" }}-{{ checksum "requirements-server.txt" }}-{{ checksum "requirements-dev.txt" }}-{{ checksum "requirements-experimental.txt" }}-{{ checksum "requirements-docs.txt" }}
+          key: cache-v5-{{ arch }}-python<< parameters.python-version >>-<< parameters.chardet >>-{{ checksum "pyproject.toml" }}-{{ checksum "requirements-experimental.txt" }}
           paths:
             - ~/venv
 
 jobs:
   test:
     parameters:
+      base-image:
+        type: string
+        default: cimg/python
       python-version:
         type: string
       chardet:
@@ -72,7 +72,7 @@ jobs:
         default: ""
     working_directory: ~/web-monitoring-diff
     docker:
-      - image: cimg/python:<< parameters.python-version >>
+      - image: << parameters.base-image >>:<< parameters.python-version >>
     steps:
       - checkout
       - setup_pip:
@@ -105,11 +105,28 @@ jobs:
 
   build_docker:
     machine:
-      image: ubuntu-2004:202111-02
+      image: ubuntu-2404:2025.09.1
+      docker_layer_caching: true
     steps:
+      - run:
+          name: Upgrade curl
+          command: sudo apt-get update && sudo apt-get install -y curl
       - checkout
       - run: |
           docker build -t envirodgi/web-monitoring-diff:${CIRCLE_SHA1} .
+      - run:
+          name: Smoketest
+          command: |
+            docker run --rm -p 8888:80 envirodgi/web-monitoring-diff:${CIRCLE_SHA1} &
+
+            # Give server a moment to start.
+            sleep 5
+
+            # Does it respond successfully to some basic requests?
+            curl --fail-with-body 'http://localhost:8888/'
+            curl --fail-with-body 'http://localhost:8888/identical_bytes?a=https://example.com/&b=https://example.com/'
+
+            kill %1
       - run:
           name: Save Image
           command: |
@@ -206,6 +223,12 @@ workflows:
                 chardet: "cchardet"
               - python-version: "3.14"
                 chardet: "cchardet"
+      - test:
+          matrix:
+            alias: test-python-pre
+            parameters:
+              base-image: ["mr0grog/circle-python-pre"]
+              python-version: ["3.15.0a7", "3.15.0a7t"]
       - lint:
           filters:
             tags:

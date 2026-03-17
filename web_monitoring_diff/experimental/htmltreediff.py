@@ -35,7 +35,8 @@ def diff(a_text, b_text):
 
         $ pip install git+https://github.com/danielballan/htmltreediff@customize
 
-    You can also install all experimental differs with::
+    You can also install all experimental differs by extracting the
+    ``requirements-experimental.txt`` file from this package and running::
 
         $ pip install -r requirements-experimental.txt
 

@@ -463,7 +463,6 @@ class DiffHandler(BaseHandler):
             self.settings['remaining_diffs_for_executor'] = MAX_DIFFS_PER_WORKER * DIFFER_PARALLELISM
         executor = self.get_diff_executor(reset=reset)
 
-        # executor = self.get_diff_executor()
         loop = asyncio.get_running_loop()
         for attempt in range(tries):
             try:

@@ -1,0 +1,83 @@
+[project]
+name = "web-monitoring-diff"
+dynamic = ["version"]
+
+description = "Tools for diffing & comparing web content, including a web server that generates those diffs as an HTTP service."
+readme = "README.md"
+authors = [
+    {name = "Environmental Data Governance Initiative", email = "info@envirodatagov.org"}
+]
+
+license = {text = "GPL-3.0-only"}
+requires-python = ">=3.10"
+
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Natural Language :: English",
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+]
+
+dependencies = [
+    "beautifulsoup4 >=4.9.0,<5",
+    "fast_diff_match_patch >=2.0.1,<3",
+    "html5-parser >=0.4.0,<0.5",
+    "lxml >=4.5.0,<7",
+]
+
+[project.optional-dependencies]
+# Dependencies for the HTTP server.
+server = [
+    "chardet >=5.0.0,<6",
+    "pycurl >=7.43,<8",
+    "sentry-sdk[tornado] >=2.0.0,<3.0",
+    "tornado >=6.0.0,<7",
+]
+# Development-related dependencies (for building, running tests, etc.)
+dev = [
+    "coverage ~=7.13",
+    "flake8 ~=7.3.0",
+    "pytest ~=9.0.2",
+]
+# Tools for building documentation. Some of our docs tools conflict with dev
+# tools on Python < 10, so docs tools are listed here in order to make it
+# possible to skip installing them if not needed.
+docs = [
+    "ipython ~=7.34.0",
+    "numpydoc ~=1.10",
+    "sphinx ~=8.2.3",
+    "sphinx-copybutton ~=0.5.2",
+    "sphinx_rtd_theme ~=3.1.0",
+]
+# Experimental Dependencies
+# NOTE: experimental dependencies are all git URLs, so cannot be listed as
+# extras/optional dependencies (PyPI and most package indexes forbid them,
+# because they are dangerous to install from).
+# See `requirements-experimental.txt` for a list of them that you can easily
+# install with pip, or with a package manager that has pip emulation (e.g. uv).
+
+[project.urls]
+"Documentation" = "https://web-monitoring-diff.readthedocs.io/en/stable/"
+"Changelog" = "https://web-monitoring-diff.readthedocs.io/en/stable/release-history.html"
+"Source code" = "https://github.com/edgi-govdata-archiving/web-monitoring-diff"
+"Issues" = "https://github.com/edgi-govdata-archiving/web-monitoring-diff/issues"
+
+[project.scripts]
+web-monitoring-diff-server = "web_monitoring_diff.server.server:cli"
+
+[build-system]
+requires = ["hatchling ~=1.29", "hatch-vcs ~=0.5"]
+build-backend = "hatchling.build"
+
+[tool.hatch]
+version.source = "vcs"
+build.hooks.vcs.version-file = "web_monitoring_diff/_version.py"
+
+[tool.hatch.build.targets.wheel.force-include]
+# Include experimental requirements file so people can reference it from
+# the installed package.
+"./requirements-experimental.txt" = "web_monitoring_diff/requirements-experimental.txt"
+
+# need this for git depenencies
+[tool.hatch.metadata]
+allow-direct-references = true
