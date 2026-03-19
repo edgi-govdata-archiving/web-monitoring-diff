@@ -1,7 +1,6 @@
 from argparse import ArgumentParser
 import asyncio
 import codecs
-import concurrent.futures
 import hashlib
 import inspect
 import functools
@@ -20,9 +19,10 @@ import tornado.web
 import traceback
 import web_monitoring_diff
 from .mock_http import MockResponse
+from .diff_pool import DiffPool
 from .. import basic_diffs, html_render_diff, html_links_diff
 from ..exceptions import UndiffableContentError, UndecodableContentError
-from ..utils import shutdown_executor_in_loop, Signal
+from ..utils import Signal
 
 # Where possible, use cchardet (or faust-cchardet) for performance.
 # Unfortunately these aren't supported in the latest Python vesions, so we also
@@ -178,8 +178,7 @@ access_control_allow_origin_header = \
     os.environ.get('ACCESS_CONTROL_ALLOW_ORIGIN_HEADER')
 
 
-def initialize_diff_worker():
-    signal.signal(signal.SIGINT, signal.SIG_IGN)
+
 
 
 class DiffServer(tornado.web.Application):
@@ -199,23 +198,10 @@ class DiffServer(tornado.web.Application):
         self.terminating = True
         if self.server:
             self.server.stop()
-        await self.shutdown_differs(immediate)
+        if hasattr(self, 'diff_pool') and self.diff_pool:
+            await self.diff_pool.shutdown(immediate)
         if self.server:
             await self.server.close_all_connections()
-
-    async def shutdown_differs(self, immediate=False):
-        """Stop all child processes used for running diffs."""
-        differs = self.settings.get('diff_executor')
-        if differs:
-            if immediate:
-                # NOTE: this might be fragile since we are grabbing a private
-                # attribute. One alternative is to use psutil to find all child
-                # pids and indiscriminately kill them, but that has its own
-                # issues.
-                for child in differs._processes.values():
-                    child.kill()
-            else:
-                await shutdown_executor_in_loop(differs)
 
     async def quit(self, immediate=False, code=0):
         await self.shutdown(immediate=immediate)
@@ -484,69 +470,8 @@ class DiffHandler(BaseHandler):
         Actually do a diff between two pieces of content, optionally retrying
         if the process pool that executes the diff breaks.
         """
-        reset = False
-        if MAX_DIFFS_PER_WORKER and self.settings.get('remaining_diffs_for_executor', 0) <= 0:
-            reset = True
-            self.settings['remaining_diffs_for_executor'] = MAX_DIFFS_PER_WORKER * DIFFER_PARALLELISM
-        executor = self.get_diff_executor(reset=reset)
-
-        loop = asyncio.get_running_loop()
-        for attempt in range(tries):
-            try:
-                if MAX_DIFFS_PER_WORKER:
-                    self.settings['remaining_diffs_for_executor'] -= 1
-                return await loop.run_in_executor(
-                    executor, functools.partial(caller, func, a, b, **params))
-            except concurrent.futures.process.BrokenProcessPool:
-                if attempt + 1 < tries:
-                    # There could be many diffs happening in parallel, so
-                    # before trying to reset the process pool, make sure other
-                    # parallel diffs haven't already done it. If it's already
-                    # been reset, then we can just go and use the new one.
-                    old_executor, executor = executor, self.get_diff_executor()
-                    if (
-                        executor == old_executor or
-                        (
-                            MAX_DIFFS_PER_WORKER and
-                            self.settings.get('remaining_diffs_for_executor', 0) <= 0
-                        )
-                    ):
-                        self.settings['remaining_diffs_for_executor'] = MAX_DIFFS_PER_WORKER * DIFFER_PARALLELISM
-                        executor = self.get_diff_executor(reset=True)
-                else:
-                    # If we shouldn't allow the server to keep rebuilding the
-                    # differ pool for new requests, schedule a shutdown.
-                    # (*Schuduled* so that current requests have a chance to
-                    # complete with an error.)
-                    if not RESTART_BROKEN_DIFFER:
-                        logger.error('Process pool for diffing has failed too '
-                                     'many times; quitting server...')
-                        tornado.ioloop.IOLoop.current().add_callback(
-                            self.application.quit,
-                            code=10)
-                    raise
-
-    # NOTE: this doesn't do anything async, but if we change it to do so, we
-    # need to add a lock (either asyncio.Lock or tornado.locks.Lock).
-    def get_diff_executor(self, reset=False):
-        if self.application.terminating:
-            raise RuntimeError('Diff executor is being shut down.')
-
-        executor = self.settings.get('diff_executor')
-        if reset or not executor:
-            if executor:
-                try:
-                    # NOTE: we don't need await this; we just want to make sure
-                    # the old executor gets cleaned up.
-                    shutdown_executor_in_loop(executor)
-                except Exception:
-                    pass
-            executor = concurrent.futures.ProcessPoolExecutor(
-                DIFFER_PARALLELISM,
-                initializer=initialize_diff_worker)
-            self.settings['diff_executor'] = executor
-
-        return executor
+        task_func = functools.partial(caller, func, a, b, **params)
+        return await self.application.diff_pool.diff(task_func, tries=tries)
 
     def write_error(self, status_code, **kwargs):
         response = {'code': status_code, 'error': self._reason}
@@ -744,12 +669,25 @@ def make_app():
     class BoundDiffHandler(DiffHandler):
         differs = DIFF_ROUTES
 
-    return DiffServer([
+    app = DiffServer([
         (r"/healthcheck", HealthCheckHandler),
         (r"/([A-Za-z0-9_]+)", BoundDiffHandler),
         (r"/", IndexHandler),
-    ], debug=DEBUG_MODE, compress_response=True,
-       diff_executor=None)
+    ], debug=DEBUG_MODE, compress_response=True)
+    
+    def on_fatal_error():
+        tornado.ioloop.IOLoop.current().add_callback(
+            app.quit,
+            code=10)
+
+    app.diff_pool = DiffPool(
+        parallelism=DIFFER_PARALLELISM,
+        max_diffs_per_worker=MAX_DIFFS_PER_WORKER,
+        restart_broken_differ=RESTART_BROKEN_DIFFER,
+        on_fatal_error=on_fatal_error
+    )
+
+    return app
 
 
 def start_app(port):
