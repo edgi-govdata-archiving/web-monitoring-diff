@@ -149,6 +149,39 @@ def test_html_diff_render_should_count_changes():
     assert results['change_count'] == results['insertions_count'] + results['deletions_count']
 
 
+def test_html_diff_render_ignores_case_only_text_changes_by_default():
+    results = html_diff_render(
+        '<html><body><h1>OIL AND GAS</h1></body></html>',
+        '<html><body><h1>Oil and Gas</h1></body></html>',
+        include='all')
+
+    assert results['change_count'] == 0
+    assert '<del class="wm-diff">OIL AND GAS</del>' not in results['combined']
+    assert '<ins class="wm-diff">Oil and Gas</ins>' not in results['combined']
+
+
+def test_html_diff_render_can_compare_text_case_sensitively():
+    results = html_diff_render(
+        '<html><body><h1>OIL AND GAS</h1></body></html>',
+        '<html><body><h1>Oil and Gas</h1></body></html>',
+        include='all',
+        case_sensitive=True)
+
+    assert results['change_count'] > 0
+    assert '<del class="wm-diff">OIL AND GAS</del>' in results['combined']
+    assert '<ins class="wm-diff">Oil and Gas</ins>' in results['combined']
+
+
+def test_html_diff_render_ignores_case_only_title_changes_by_default():
+    results = html_diff_render(
+        '<html><head><title>OIL AND GAS</title></head><body>Hello</body></html>',
+        '<html><head><title>Oil and Gas</title></head><body>Hello</body></html>')
+
+    assert 'content="Oil and Gas"' in results['combined']
+    assert '&lt;del' not in results['combined']
+    assert '&lt;ins' not in results['combined']
+
+
 def test_html_diff_render_should_not_break_with_empty_content():
     results = html_diff_render(
         ' \n ',
