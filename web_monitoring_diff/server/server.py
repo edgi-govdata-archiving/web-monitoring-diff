@@ -20,6 +20,12 @@ import tornado.web
 import traceback
 import web_monitoring_diff
 from .mock_http import MockResponse
+from .cache import (
+    get_cached_response,
+    cache_response,
+    get_cached_diff,
+    cache_diff,
+)
 from .. import basic_diffs, html_render_diff, html_links_diff
 from ..exceptions import UndiffableContentError, UndecodableContentError
 from ..utils import shutdown_executor_in_loop, Signal
@@ -320,24 +326,59 @@ class DiffHandler(BaseHandler):
                               'as the value for both `a` and `b` query '
                               'parameters.')
 
-        # TODO: Add caching of fetched URIs.
+        a_url = urls['a']
+        b_url = urls['b']
+
+        # Pop the per-URL hash params before building the diff cache key so
+        # they don't affect the key (the hash is used for validation, not
+        # content identity).
+        a_hash = query_params.pop('a_hash', None)
+        b_hash = query_params.pop('b_hash', None)
+
+        # Diff-result caching only applies to HTTP/HTTPS URLs. file:// URLs are
+        # development-only and their content can change without notice, so we
+        # skip caching for them.
+        _http_schemes = ('http://', 'https://')
+        use_diff_cache = (a_url.startswith(_http_schemes)
+                          and b_url.startswith(_http_schemes))
+
+        # --- Diff result cache (check before fetching upstream content) -----
+        if use_diff_cache:
+            cached_result = get_cached_diff(differ, a_url, b_url, query_params)
+            if cached_result is not None:
+                cached_result['version'] = web_monitoring_diff.__version__
+                cached_result.setdefault('type', differ)
+                self.write(cached_result)
+                return
+
+        # Fetch both URLs, using the per-URL response cache where possible.
         requests = [self.fetch_diffable_content(url,
-                                                query_params.pop(f'{param}_hash', None),
+                                                hash_val,
                                                 query_params)
-                    for param, url in urls.items()]
+                    for (param, url), hash_val
+                    in zip(urls.items(), (a_hash, b_hash))]
         content = await asyncio.gather(*requests)
 
         # Pass the bytes and any remaining args to the diffing function.
         res = await self.diff(func, content[0], content[1], query_params)
+
+        # Store the diff result for future requests (HTTP/HTTPS only).
+        if use_diff_cache:
+            cache_diff(differ, a_url, b_url, query_params, res)
+
         res['version'] = web_monitoring_diff.__version__
         # Echo the client's request unless the differ func has specified
-        # somethine else.
+        # something else.
         res.setdefault('type', differ)
         self.write(res)
 
     async def fetch_diffable_content(self, url, expected_hash, query_params):
         """
         Fetch and validate a content to diff from a given URL.
+
+        For HTTP/HTTPS URLs the response body and headers are cached so that
+        repeated requests for the same URL (e.g. when a user switches between
+        diff types) can be served without a new upstream request.
         """
         response = None
 
@@ -357,6 +398,12 @@ class DiffHandler(BaseHandler):
                               'Invalid URL for upstream content',
                               extra={'url': url})
         else:
+            # --- Response cache: serve from cache when available ------------
+            cached = get_cached_response(url)
+            if cached is not None:
+                # Skip hash validation for cached content: the hash was
+                # already verified when the response was first stored.
+                return cached
             # Include request headers defined by the query param
             # `pass_headers=HEADER_NAMES` in the upstream request. This is
             # useful for passing data like cookie headers. HEADER_NAMES is a
@@ -472,6 +519,11 @@ class DiffHandler(BaseHandler):
                                          'url': url,
                                          'expected_hash': expected_hash,
                                          'actual_hash': actual_hash})
+
+        # Store a freshly-fetched HTTP/HTTPS response in the cache so
+        # subsequent requests for the same URL are served faster.
+        if response is not None and url.startswith(('http://', 'https://')):
+            cache_response(url, response)
 
         return response
 
