@@ -9,8 +9,12 @@ cache correctly.
 
 import json
 import unittest
+import pytest
 from pathlib import Path
 from unittest.mock import patch, MagicMock
+
+# Skip all tests in this file if the optional cache package is not installed.
+pytest.importorskip("dogpile.cache")
 
 from tornado.testing import AsyncHTTPTestCase
 
