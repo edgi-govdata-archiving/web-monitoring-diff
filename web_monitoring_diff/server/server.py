@@ -12,6 +12,11 @@ import re
 import sentry_sdk
 import signal
 import sys
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 from tornado.curl_httpclient import CurlAsyncHTTPClient, CurlError
 import tornado.simple_httpclient
 import tornado.httpclient
