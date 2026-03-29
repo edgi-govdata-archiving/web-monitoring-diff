@@ -1897,20 +1897,20 @@ UPDATE_CONTRAST_SCRIPT = """
 
         function normalizeChannel (integerValue) {
             const scaled = integerValue / 255;
-            if (scaled < 0.03928) {
+            if (scaled < 0.04045) {
                 return scaled / 12.92;
             }
             return Math.pow((scaled + 0.055) / 1.055, 2.4);
         }
 
-        // See https://www.w3.org/TR/WCAG/#relativeluminancedef
+        // See https://www.w3.org/TR/wcag/#dfn-relative-luminance
         function srgbRelativeLuminance (color) {
             return 0.2126 * normalizeChannel(color.red)
                 + 0.7152 * normalizeChannel(color.green)
                 + 0.0722 * normalizeChannel(color.blue);
         }
 
-        // See https://www.w3.org/TR/WCAG/#contrast-ratiodef
+        // See https://www.w3.org/TR/wcag/#dfn-contrast-ratio
         function contrastRatio (a, b) {
             const luminanceA = srgbRelativeLuminance(a) + 0.05;
             const luminanceB = srgbRelativeLuminance(b) + 0.05;
@@ -1920,7 +1920,7 @@ UPDATE_CONTRAST_SCRIPT = """
         document.querySelectorAll('ins,del').forEach(element => {
             const color = parseColor(getComputedStyle(element).color);
             const background = parseColor(getComputedStyle(element).backgroundColor);
-            if (contrastRatio(color, background) < 4) {
+            if (contrastRatio(color, background) < 4.5) {
                 element.style.color = '#000';
             }
         });
