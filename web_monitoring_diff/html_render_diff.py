@@ -1883,6 +1883,9 @@ def get_diff_styles():
 
 UPDATE_CONTRAST_SCRIPT = """
     (function () {
+        const black = { red: 0, green: 0, blue: 0, alpha: 1 };
+        const white = { red: 255, green: 255, blue: 255, alpha: 1 };
+
         // Update the text color of change elements to ensure a readable level
         // of contrast with the background color
         function parseColor (colorString) {
@@ -1893,6 +1896,10 @@ UPDATE_CONTRAST_SCRIPT = """
                 blue: Number(components[3]),
                 alpha: components[4] == null ? 1 : Number(components[4])
             };
+        }
+
+        function serializeColor (color) {
+            return `rgba(${color.red}, ${color.green}, ${color.blue}, ${color.alpha})`;
         }
 
         function normalizeChannel (integerValue) {
@@ -1921,7 +1928,10 @@ UPDATE_CONTRAST_SCRIPT = """
             const color = parseColor(getComputedStyle(element).color);
             const background = parseColor(getComputedStyle(element).backgroundColor);
             if (contrastRatio(color, background) < 4.5) {
-                element.style.color = '#000';
+                const blackContrast = contrastRatio(black, background);
+                const whiteContrast = contrastRatio(white, background);
+                const newColor = (blackContrast >= whiteContrast) ? black : white;
+                element.style.color = serializeColor(newColor);
             }
         });
     })();
