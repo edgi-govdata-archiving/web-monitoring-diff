@@ -233,16 +233,22 @@ First, make sure you have an appropriate Python version and the necessary system
     import web_monitoring_diff
     ```
 
-5. Edit some code!
+5. Install the pre-commit hooks:
 
-6. Before pushing your commits and making a PR, run the tests and lint your code:
+    ```sh
+    $ pre-commit install
+    ```
+
+6. Edit some code!
+
+7. Before pushing your commits and making a PR, run the tests and lint your code:
 
     ```sh
     # Run tests:
     $ pytest .
 
     # Lint your code to make sure it doesn't have any style issues:
-    $ pyflakes .
+    $ ruff check .
     ```
 
 
