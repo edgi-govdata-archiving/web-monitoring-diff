@@ -12,11 +12,7 @@ import re
 import sentry_sdk
 import signal
 import sys
-try:
-    from dotenv import load_dotenv
-    load_dotenv()
-except ImportError:
-    pass
+from dotenv import load_dotenv
 from tornado.curl_httpclient import CurlAsyncHTTPClient, CurlError
 import tornado.simple_httpclient
 import tornado.httpclient
@@ -28,6 +24,9 @@ from .mock_http import MockResponse
 from .. import basic_diffs, html_render_diff, html_links_diff
 from ..exceptions import UndiffableContentError, UndecodableContentError
 from ..utils import shutdown_executor_in_loop, Signal
+
+# reads variables from a .env file and sets them in os.environ
+load_dotenv()
 
 # Where possible, use cchardet (or faust-cchardet) for performance.
 # Unfortunately these aren't supported in the latest Python vesions, so we also
