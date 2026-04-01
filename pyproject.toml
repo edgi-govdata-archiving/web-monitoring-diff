@@ -85,17 +85,6 @@ allow-direct-references = true
 
 [tool.ruff]
 line-length = 115
-exclude = [
-    ".git",
-    "__pycache__",
-    "build",
-    "dist",
-    "venv",
-    ".venv*",
-    "versioneer.py",
-    "web_monitoring_diff/_version.py",
-    "docs/source/conf.py",
-]
 
 [tool.ruff.lint]
 select = ["F", "W"]
