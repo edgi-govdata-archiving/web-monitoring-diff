@@ -25,9 +25,6 @@ from .. import basic_diffs, html_render_diff, html_links_diff
 from ..exceptions import UndiffableContentError, UndecodableContentError
 from ..utils import shutdown_executor_in_loop, Signal
 
-# reads variables from a .env file and sets them in os.environ
-load_dotenv()
-
 # Where possible, use cchardet (or faust-cchardet) for performance.
 # Unfortunately these aren't supported in the latest Python vesions, so we also
 # fall back to something in pure Python for those cases. There are a few
@@ -791,6 +788,9 @@ def cli():
     if arguments.version:
         print(web_monitoring_diff.__version__)
         return
+
+    # Update os.environ with values from `.env` file, if present.
+    load_dotenv()
 
     start_app(arguments.port)
 
