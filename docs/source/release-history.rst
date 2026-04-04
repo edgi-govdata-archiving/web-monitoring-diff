@@ -6,6 +6,7 @@ In Development
 --------------
 
 - Move mock request/response classes into a separate submodule of `server`. (:issue:`226`)
+- Server automatically loads configuration from `.env` file if present. (:issue:`247`)
 
 
 Version 0.2.0 (2026-03-16)

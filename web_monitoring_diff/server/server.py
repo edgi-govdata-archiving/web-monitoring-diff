@@ -12,6 +12,7 @@ import re
 import sentry_sdk
 import signal
 import sys
+from dotenv import load_dotenv
 from tornado.curl_httpclient import CurlAsyncHTTPClient, CurlError
 import tornado.simple_httpclient
 import tornado.httpclient
@@ -787,6 +788,9 @@ def cli():
     if arguments.version:
         print(web_monitoring_diff.__version__)
         return
+
+    # Update os.environ with values from `.env` file, if present.
+    load_dotenv()
 
     start_app(arguments.port)
 
