@@ -101,7 +101,7 @@ jobs:
           name: Code linting
           command: |
             . ~/venv/bin/activate
-            flake8 .
+            ruff check .
 
   build_docker:
     machine:

@@ -37,8 +37,9 @@ server = [
 # Development-related dependencies (for building, running tests, etc.)
 dev = [
     "coverage ~=7.13",
-    "flake8 ~=7.3.0",
+    "pre-commit ~=4.5",
     "pytest ~=9.0.2",
+    "ruff ~=0.15.8",
 ]
 # Tools for building documentation. Some of our docs tools conflict with dev
 # tools on Python < 10, so docs tools are listed here in order to make it
@@ -82,3 +83,9 @@ build.hooks.vcs.version-file = "web_monitoring_diff/_version.py"
 # need this for git depenencies
 [tool.hatch.metadata]
 allow-direct-references = true
+
+[tool.ruff]
+line-length = 115
+
+[tool.ruff.lint]
+select = ["F", "W"]
