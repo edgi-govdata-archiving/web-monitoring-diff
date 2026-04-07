@@ -20,7 +20,7 @@ from enum import Enum
 from functools import lru_cache
 import copy
 import difflib
-from .utils import get_color_palette
+from .utils import get_color_palette,_normalize_whitespace
 import html
 import html5_parser
 import logging
@@ -675,6 +675,23 @@ class DiffToken(str):
     def html(self):
         return str(self)
 
+    def __eq__(self, other):
+        self_norm = _normalize_whitespace(str(self))
+        other_norm = _normalize_whitespace(str(other))
+
+        # Also compare trailing_whitespace presence, consistent with original design.
+        # Normalize it too — a trailing nbsp should equal a trailing space.
+        self_trail = bool(_normalize_whitespace(self.trailing_whitespace)) \
+            if hasattr(self, 'trailing_whitespace') else False
+        other_trail = bool(_normalize_whitespace(other.trailing_whitespace)) \
+            if hasattr(other, 'trailing_whitespace') else False
+
+        return self_norm == other_norm and self_trail == other_trail
+
+    def __hash__(self):
+        self_trail = bool(_normalize_whitespace(self.trailing_whitespace)) \
+            if hasattr(self, 'trailing_whitespace') else False
+        return hash((_normalize_whitespace(str(self)), self_trail))
 
 class tag_token(DiffToken):
 
