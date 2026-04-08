@@ -41,7 +41,32 @@ logger = logging.getLogger(__name__)
 # Track errors with Sentry.io. It will automatically detect the `SENTRY_DSN`
 # environment variable. If not set, all its methods will operate conveniently
 # as no-ops.
-sentry_sdk.init(ignore_errors=[KeyboardInterrupt])
+SEND_EXTERNAL_ERRORS = os.environ.get('SEND_EXTERNAL_ERRORS', 'false').lower() == 'true'
+def before_send(event, hint):
+    # If the deployment wants all errors, send everything
+    if SEND_EXTERNAL_ERRORS:
+        return event
+
+    exc_info = hint.get('exc_info')
+    if exc_info:
+        actual_error = exc_info[1]
+
+        # Drop client errors (4xx)
+        if isinstance(actual_error, tornado.web.HTTPError):
+            if actual_error.status_code < 500:
+                return None  # Don't send to Sentry
+            # 502/504 are upstream issues, not ours
+            if actual_error.status_code in (502, 504):
+                return None
+
+        # Drop known content errors — these are expected, not bugs
+        if isinstance(actual_error, (UndiffableContentError,
+                                     UndecodableContentError,
+                                     PublicError)):
+            return None
+
+    return event
+sentry_sdk.init(ignore_errors=[KeyboardInterrupt],before_send=before_send,)
 # Tornado logs any non-success response at ERROR level, which Sentry captures
 # by default. We don't really want those logs.
 sentry_sdk.integrations.logging.ignore_logger('tornado.access')
@@ -551,14 +576,12 @@ class DiffHandler(BaseHandler):
 
     def write_error(self, status_code, **kwargs):
         response = {'code': status_code, 'error': self._reason}
-
         # Handle errors that are allowed to be public
         # TODO: this error filtering should probably be in `send_error()`
         actual_error = 'exc_info' in kwargs and kwargs['exc_info'][1] or None
         if isinstance(actual_error, (UndiffableContentError, UndecodableContentError)):
             response['code'] = 422
             response['error'] = str(actual_error)
-
         if 'extra' in kwargs:
             response.update(kwargs['extra'])
         if isinstance(actual_error, PublicError):
@@ -568,7 +591,9 @@ class DiffHandler(BaseHandler):
         # by Sentry by default, but we do want to track unexpected, server-side
         # issues. (Usually a non-HTTPError will have been raised in this case,
         # but PublicError can be used for special status codes.)
-        if isinstance(actual_error, tornado.web.HTTPError) and response['code'] >= 500:
+        # Filtering of client (4xx) and upstream (502, 504) errors is handled
+        # by the `before_send` hook in Sentry's configuration.
+        if actual_error:
             with sentry_sdk.new_scope() as scope:
                 # TODO: this breadcrumb should happen at the start of the
                 # request handler, but we need to test and make sure crumbs are
@@ -593,12 +618,9 @@ class DiffHandler(BaseHandler):
             response['error'] = str(kwargs['exc_info'][1])
             stack_lines = traceback.format_exception(*kwargs['exc_info'])
             response['stack'] = ''.join(stack_lines)
-
         if response['code'] != status_code:
             self.set_status(response['code'])
         self.finish(response)
-
-
 def _extract_encoding(headers, content):
     encoding = None
     content_type = headers.get('Content-Type', '').lower()
