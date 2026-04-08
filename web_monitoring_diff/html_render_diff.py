@@ -99,6 +99,7 @@ block_level_tags = set([
     'ins',
     'slot',
 ])
+change_boundary_tags=set(['a','label'])
 
 # "void" in the HTML sense -- these tags do not having a closing tag
 void_tags = (
@@ -154,6 +155,8 @@ no_change_children_tags = set([
     'tr',
     'ul',
 ])
+def breaks_change_element(name):
+    return name in block_level_tags or name in change_boundary_tags
 
 # TODO: do we need special treatment for `<picture>`? Kind of like `<img>`
 
@@ -633,61 +636,116 @@ def expand_tokens(tokens, equal=False):
         for post in token.post_tags:
             yield post
 
+    
+
+
+
+WHITESPACE_RE = re.compile(r'\s+', re.UNICODE)
+
+# Tags where whitespace must NOT be normalized
+PRESERVE_WHITESPACE_TAGS = {
+    "pre",
+    "code",
+    "textarea",
+}
+
+SPECIAL_SPACES = {
+    "\u00A0": " ",  # nbsp
+    "\u2000": " ",
+    "\u2001": " ",
+    "\u2002": " ",
+    "\u2003": " ",
+    "\u2004": " ",
+    "\u2005": " ",
+    "\u2006": " ",
+    "\u2007": " ",
+    "\u2008": " ",
+    "\u2009": " ",
+    "\u200A": " ",
+}
+
+
+def normalize_whitespace(text):
+    if not text:
+        return text
+
+    # Convert special spaces to normal space
+    for s, replacement in SPECIAL_SPACES.items():
+        text = text.replace(s, replacement)
+
+    # Collapse whitespace sequences
+    text = WHITESPACE_RE.sub(" ", text)
+
+    return text.strip()
+
 
 class DiffToken(str):
-    """ Represents a diffable token, generally a word that is displayed to
-    the user.  Opening tags are attached to this token when they are
+    """Represents a diffable token, generally a word that is displayed to
+    the user. Opening tags are attached to this token when they are
     adjacent (pre_tags) and closing tags that follow the word
-    (post_tags).  Some exceptions occur when there are empty tags
+    (post_tags). Some exceptions occur when there are empty tags
     adjacent to a word, so there may be close tags in pre_tags, or
     open tags in post_tags.
 
     We also keep track of whether the word was originally followed by
     whitespace, even though we do not want to treat the word as
-    equivalent to a similar word that does not have a trailing
-    space."""
+    equivalent to a similar word that does not have a trailing space.
+    """
 
     # When this is true, the token will be eliminated from the
     # displayed diff if no change has occurred:
     hide_when_equal = False
 
-    def __new__(cls, text, pre_tags=None, post_tags=None, trailing_whitespace=""):
+    def __new__(cls, text, pre_tags=None, post_tags=None,
+                trailing_whitespace="", preserve_ws=False):  # FIX 1: preserve_ws moved to end with default value
         obj = str.__new__(cls, text)
-
-        if pre_tags is not None:
-            obj.pre_tags = pre_tags
-        else:
-            obj.pre_tags = []
-
-        if post_tags is not None:
-            obj.post_tags = post_tags
-        else:
-            obj.post_tags = []
-
+        obj.pre_tags = pre_tags or []
+        obj.post_tags = post_tags or []
         obj.trailing_whitespace = trailing_whitespace
-
+        obj.preserve_ws = preserve_ws  # FIX 2: assigned from parameter, not from stray class-level code
         return obj
 
+    def __eq__(self, other):  # FIX 3: corrected indentation — now properly inside the class
+        if not isinstance(other, DiffToken):
+            return False
+
+        if getattr(self, "preserve_ws", False) or getattr(other, "preserve_ws", False):
+            return str(self) == str(other)
+
+        return normalize_whitespace(str(self)) == normalize_whitespace(str(other))
+
     def __repr__(self):
-        return 'DiffToken(%s, %r, %r, %r)' % (str.__repr__(self), self.pre_tags,
-                                              self.post_tags, self.trailing_whitespace)
+        return 'DiffToken(%s, %r, %r, %r)' % (
+            str.__repr__(self),
+            self.pre_tags,
+            self.post_tags,
+            self.trailing_whitespace,
+        )
+
+    def __hash__(self):  # FIX 4: corrected indentation — now properly inside the class
+        if self.preserve_ws:
+            return hash(str(self))
+        return hash(normalize_whitespace(str(self)))
 
     def html(self):
         return str(self)
 
 
 class tag_token(DiffToken):
-
-    """ Represents a token that is actually a tag.  Currently this is just
+    """Represents a token that is actually a tag. Currently this is just
     the <img> tag, which takes up visible space just like a word but
-    is only represented in a document by a tag.  """
+    is only represented in a document by a tag.
+    """
 
     def __new__(cls, tag, data, html_repr, comparator, pre_tags=None,
                 post_tags=None, trailing_whitespace=""):
-        obj = DiffToken.__new__(cls, "%s: %s" % (type, data),
-                            pre_tags=pre_tags,
-                            post_tags=post_tags,
-                            trailing_whitespace=trailing_whitespace)
+        obj = DiffToken.__new__(
+            cls,
+            "%s: %s" % (tag, data),  # FIX 5: was `type` (builtin), should be `tag`
+            pre_tags=pre_tags,
+            post_tags=post_tags,
+            trailing_whitespace=trailing_whitespace,
+        )
         obj.tag = tag
         obj.data = data
         obj.html_repr = html_repr
@@ -695,38 +753,42 @@ class tag_token(DiffToken):
         return obj
 
     def __repr__(self):
-        return 'tag_token(%s, %s, html_repr=%s, post_tags=%r, pre_tags=%r, trailing_whitespace=%r)' % (
-            self.tag,
-            self.data,
-            self.html_repr,
-            self.pre_tags,
-            self.post_tags,
-            self.trailing_whitespace)
+        return (
+            'tag_token(%s, %s, html_repr=%s, post_tags=%r, pre_tags=%r, trailing_whitespace=%r)'
+            % (
+                self.tag,
+                self.data,
+                self.html_repr,
+                self.post_tags,
+                self.pre_tags,
+                self.trailing_whitespace,
+            )
+        )
 
     def html(self):
         return self.html_repr
 
 
 class href_token(DiffToken):
-    """ Represents the href in an anchor tag.  Unlike other words, we only
-    show the href when it changes.  """
+    """Represents the href in an anchor tag. Unlike other words, we only
+    show the href when it changes.
+    """
 
     hide_when_equal = True
 
     def __new__(cls, href, comparator, pre_tags=None,
                 post_tags=None, trailing_whitespace=""):
-        obj = DiffToken.__new__(cls, text=href,
-                                pre_tags=pre_tags,
-                                post_tags=post_tags,
-                                trailing_whitespace=trailing_whitespace)
+        obj = DiffToken.__new__(
+            cls,
+            text=href,
+            pre_tags=pre_tags,
+            post_tags=post_tags,
+            trailing_whitespace=trailing_whitespace,
+        )
         obj.comparator = comparator
         return obj
 
-    def __eq__(self, other):
-        # This equality check aims to apply specific rules to the contents of
-        # the href element solving false positive cases
-        if not isinstance(other, href_token):
-            return False
+    def __eq__(self, other):  # FIX 6: was missing `other` parameter entirely
         if self.comparator:
             return self.comparator.compare(str(self), str(other))
         return super().__eq__(other)
@@ -737,6 +799,8 @@ class href_token(DiffToken):
     def html(self):
         return ' Link: %s' % self
 
+    
+    
 
 class UndiffableContentToken(DiffToken):
     pass
@@ -1258,7 +1322,7 @@ def merge_changes(change_chunks, doc, tag_type='ins'):
     # resulting token stream represents valid markup. Happily, that also means
     # we don't also have to do the expensive parse-then-serialize step later!
     depth = 0
-    current_content = None
+    current_content =[]
     for chunk in change_chunks:
         inline_tag = False
         inline_tag_name = None
@@ -1274,7 +1338,7 @@ def merge_changes(change_chunks, doc, tag_type='ins'):
             name = chunk.split('>', 1)[0].split(None, 1)[0].strip('<>/')
             # Also treat `a` tags as block in this context, because they *can*
             # contain block elements, like `h1`, etc.
-            is_block = name in block_level_tags or name == 'a'
+            is_block = breaks_change_element(name)
 
             if chunk[1] == '/':
                 if depth > 0:
@@ -1322,6 +1386,8 @@ def merge_changes(change_chunks, doc, tag_type='ins'):
                 else:
                     inline_tag = True
                     inline_tag_name = name
+                    tag_content = chunk.split('>', 1)[0].strip('<>')
+                    current_content.append(tag_content)
 
         if depth == 0:
             doc.append(f'<{tag_type} class="wm-diff">')
@@ -1534,7 +1600,7 @@ def merge_change_groups(change_chunks, doc, tag_type=None):
             name = chunk.split('>', 1)[0].split(None, 1)[0].strip('<>/')
             # Also treat `a` tags as block in this context, because they *can*
             # contain block elements, like `h1`, etc.
-            is_block = name in block_level_tags or name == 'a'
+            is_block = breaks_change_element(name)
 
             if chunk[1] == '/':
                 if depth > 0:
