@@ -1,7 +1,6 @@
 from argparse import ArgumentParser
 import asyncio
 import codecs
-import concurrent.futures
 import hashlib
 import inspect
 import functools
@@ -18,12 +17,11 @@ import tornado.simple_httpclient
 import tornado.httpclient
 import tornado.ioloop
 import tornado.web
-import traceback
 import web_monitoring_diff
 from .mock_http import MockResponse
 from .. import basic_diffs, html_render_diff, html_links_diff
-from ..exceptions import UndiffableContentError, UndecodableContentError
-from ..utils import shutdown_executor_in_loop, Signal
+from ..exceptions import UndecodableContentError
+from ..utils import Signal
 from .executor import DiffExecutorManager, DiffPoolError
 
 # Where possible, use cchardet (or faust-cchardet) for performance.
@@ -45,11 +43,13 @@ logger = logging.getLogger(__name__)
 sentry_sdk.init(ignore_errors=[KeyboardInterrupt])
 # Tornado logs any non-success response at ERROR level, which Sentry captures
 # by default. We don't really want those logs.
-sentry_sdk.integrations.logging.ignore_logger('tornado.access')
+sentry_sdk.integrations.logging.ignore_logger("tornado.access")
 
-DIFFER_PARALLELISM = int(os.environ.get('DIFFER_PARALLELISM', 10))
-MAX_DIFFS_PER_WORKER = max(int(os.environ.get('MAX_DIFFS_PER_WORKER', 0)), 0)
-RESTART_BROKEN_DIFFER = os.environ.get('RESTART_BROKEN_DIFFER', 'False').strip().lower() == 'true'
+DIFFER_PARALLELISM = int(os.environ.get("DIFFER_PARALLELISM", 10))
+MAX_DIFFS_PER_WORKER = max(int(os.environ.get("MAX_DIFFS_PER_WORKER", 0)), 0)
+RESTART_BROKEN_DIFFER = (
+    os.environ.get("RESTART_BROKEN_DIFFER", "False").strip().lower() == "true"
+)
 
 # Map tokens in the REST API to functions in modules.
 # The modules do not have to be part of the web_monitoring_diff package.
@@ -68,12 +68,14 @@ DIFF_ROUTES = {
 # Optional, experimental diffs.
 try:
     from ..experimental import htmltreediff
+
     DIFF_ROUTES["html_tree"] = htmltreediff.diff
 except ModuleNotFoundError:
     ...
 
 try:
     from ..experimental import htmldiffer
+
     DIFF_ROUTES["html_perma_cc"] = htmldiffer.diff
 except ModuleNotFoundError:
     ...
@@ -83,23 +85,23 @@ except ModuleNotFoundError:
 # <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
 # <meta charset="utf-8" />
 META_TAG_PATTERN = re.compile(
-    b'<meta[^>]+charset\\s*=\\s*[\'"]?([^>]*?)[ /;\'">]',
-    re.IGNORECASE)
+    b"<meta[^>]+charset\\s*=\\s*['\"]?([^>]*?)[ /;'\">]", re.IGNORECASE
+)
 
 # Matches an XML prolog that specifies character encoding:
 # <?xml version="1.0" encoding="ISO-8859-1"?>
 XML_PROLOG_PATTERN = re.compile(
-    b'<\\?xml\\s[^>]*encoding=[\'"]([^\'"]+)[\'"].*\\?>',
-    re.IGNORECASE)
+    b"<\\?xml\\s[^>]*encoding=['\"]([^'\"]+)['\"].*\\?>", re.IGNORECASE
+)
 
 MAX_BODY_SIZE = None
 try:
-    MAX_BODY_SIZE = int(os.environ.get('DIFFER_MAX_BODY_SIZE', 0))
+    MAX_BODY_SIZE = int(os.environ.get("DIFFER_MAX_BODY_SIZE", 0))
     if MAX_BODY_SIZE < 0:
-        print('DIFFER_MAX_BODY_SIZE must be >= 0', file=sys.stderr)
+        print("DIFFER_MAX_BODY_SIZE must be >= 0", file=sys.stderr)
         sys.exit(1)
 except ValueError:
-    print('DIFFER_MAX_BODY_SIZE must be an integer', file=sys.stderr)
+    print("DIFFER_MAX_BODY_SIZE must be an integer", file=sys.stderr)
     sys.exit(1)
 
 
@@ -110,10 +112,11 @@ class LimitedCurlAsyncHTTPClient(CurlAsyncHTTPClient):
     SimpleAsyncHTTPClient: set ``max_body_size`` to an integer representing the
     maximum number of bytes in a response body.
     """
+
     def initialize(self, max_clients=10, defaults=None, max_body_size=None):
         self.max_body_size = max_body_size
         defaults = defaults or {}
-        defaults['prepare_curl_callback'] = self.prepare_curl
+        defaults["prepare_curl_callback"] = self.prepare_curl
         super().initialize(max_clients=max_clients, defaults=defaults)
 
     def prepare_curl(self, curl):
@@ -125,10 +128,9 @@ class LimitedCurlAsyncHTTPClient(CurlAsyncHTTPClient):
 
 
 HTTP_CLIENT = LimitedCurlAsyncHTTPClient
-if os.getenv('USE_SIMPLE_HTTP_CLIENT'):
+if os.getenv("USE_SIMPLE_HTTP_CLIENT"):
     HTTP_CLIENT = None
-tornado.httpclient.AsyncHTTPClient.configure(HTTP_CLIENT,
-                                             max_body_size=MAX_BODY_SIZE)
+tornado.httpclient.AsyncHTTPClient.configure(HTTP_CLIENT, max_body_size=MAX_BODY_SIZE)
 
 
 def get_http_client():
@@ -157,13 +159,20 @@ class PublicError(tornado.web.HTTPError):
     extra : dict, optional
         Dict of additional keys and values to include in the error response.
     """
-    def __init__(self, status_code=500, public_message=None, log_message=None,
-                 extra=None, **kwargs):
+
+    def __init__(
+        self,
+        status_code=500,
+        public_message=None,
+        log_message=None,
+        extra=None,
+        **kwargs,
+    ):
         self.extra = extra or {}
 
         if public_message is not None:
-            if 'error' not in self.extra:
-                self.extra['error'] = public_message
+            if "error" not in self.extra:
+                self.extra["error"] = public_message
 
             if log_message is None:
                 log_message = public_message
@@ -171,13 +180,15 @@ class PublicError(tornado.web.HTTPError):
         super().__init__(status_code, log_message, **kwargs)
 
 
-DEBUG_MODE = os.environ.get('DIFFING_SERVER_DEBUG', 'False').strip().lower() == 'true'
+DEBUG_MODE = os.environ.get("DIFFING_SERVER_DEBUG", "False").strip().lower() == "true"
 
-VALIDATE_TARGET_CERTIFICATES = \
-    os.environ.get('VALIDATE_TARGET_CERTIFICATES', 'False').strip().lower() == 'true'
+VALIDATE_TARGET_CERTIFICATES = (
+    os.environ.get("VALIDATE_TARGET_CERTIFICATES", "False").strip().lower() == "true"
+)
 
-access_control_allow_origin_header = \
-    os.environ.get('ACCESS_CONTROL_ALLOW_ORIGIN_HEADER')
+access_control_allow_origin_header = os.environ.get(
+    "ACCESS_CONTROL_ALLOW_ORIGIN_HEADER"
+)
 
 
 def initialize_diff_worker():
@@ -185,208 +196,174 @@ def initialize_diff_worker():
 
 
 class DiffServer(tornado.web.Application):
-    terminating = False
-    server = None
-    executor_manager = None
-
-    def listen(self, port, address='', **kwargs):
+    def __init__(self, handlers, **settings):
+        super().__init__(handlers, **settings)
+        self.terminating = False
+        self.server = None
         self.executor_manager = DiffExecutorManager(
             parallelism=DIFFER_PARALLELISM,
             max_diffs=MAX_DIFFS_PER_WORKER,
             initializer=initialize_diff_worker,
-            restart_on_fail=RESTART_BROKEN_DIFFER
+            restart_on_fail=RESTART_BROKEN_DIFFER,
         )
+
+    def listen(self, port, address="", **kwargs):
         self.server = super().listen(port, address, **kwargs)
         return self.server
 
     async def shutdown(self, immediate=False):
         self.terminating = True
-        if self.server: 
+        if self.server:
             self.server.stop()
-        if self.executor_manager: 
+        if self.executor_manager:
             await self.executor_manager.shutdown(immediate)
-        if self.server: 
+        if self.server:
             await self.server.close_all_connections()
 
     async def quit(self, immediate=False, code=0):
         await self.shutdown(immediate=immediate)
         tornado.ioloop.IOLoop.current().stop()
-        if code: sys.exit(code)
+        if code:
+            sys.exit(code)
 
     def handle_signal(self, signal_type, frame):
-        """Handle OS signals by shutting down the application."""
         loop = tornado.ioloop.IOLoop.current()
 
         async def shutdown_and_stop():
             try:
-                immediate = self.terminating
-                print(f'Shutting down server {"immediately" if immediate else "gracefully"}...')
-                await self.shutdown(immediate=immediate)
+                await self.shutdown(immediate=self.terminating)
                 loop.stop()
             except Exception:
-                logger.exception('Failed to stop server!')
+                logger.exception("Failed to stop server!")
                 sys.exit(1)
 
         loop.add_callback_from_signal(shutdown_and_stop)
 
+
 class BaseHandler(tornado.web.RequestHandler):
     def set_default_headers(self):
-        
+
         if access_control_allow_origin_header is not None:
-            if 'allowed_origins' not in self.settings:
-                self.settings['allowed_origins'] = \
-                    set([origin.strip() for origin
-                         in access_control_allow_origin_header.split(',')])
-            req_origin = self.request.headers.get('Origin')
+            if "allowed_origins" not in self.settings:
+                self.settings["allowed_origins"] = set(
+                    [
+                        origin.strip()
+                        for origin in access_control_allow_origin_header.split(",")
+                    ]
+                )
+            req_origin = self.request.headers.get("Origin")
             if req_origin:
-                allowed = self.settings.get('allowed_origins')
-                if allowed and (req_origin in allowed or '*' in allowed):
-                    self.set_header('Access-Control-Allow-Origin', req_origin)
-            self.set_header('Access-Control-Allow-Credentials', 'true')
-            self.set_header('Access-Control-Allow-Headers', 'x-requested-with')
-            self.set_header('Access-Control-Allow-Methods', 'GET, OPTIONS')
+                allowed = self.settings.get("allowed_origins")
+                if allowed and (req_origin in allowed or "*" in allowed):
+                    self.set_header("Access-Control-Allow-Origin", req_origin)
+            self.set_header("Access-Control-Allow-Credentials", "true")
+            self.set_header("Access-Control-Allow-Headers", "x-requested-with")
+            self.set_header("Access-Control-Allow-Methods", "GET, OPTIONS")
+
 
 class DiffHandler(BaseHandler):
-    
+    def get_diff_executor(self, reset=False):
+        """Shim for existing tests."""
+        return self.application.executor_manager.get_executor(force_reset=reset)
 
     @functools.lru_cache()
     def decode_query_params(self):
-        """Decode query parameters into a dictionary."""
         return {k: v[-1].decode() for k, v in self.request.arguments.items()}
 
     def compute_etag(self):
-        """Compute ETag for caching, based on version and query params."""
         validation_bytes = str(
-            web_monitoring_diff.__version__ + 
-            self.request.path + 
-            str(self.decode_query_params())
-        ).encode('utf-8')
+            web_monitoring_diff.__version__
+            + self.request.path
+            + str(self.decode_query_params())
+        ).encode("utf-8")
         return f'W/"{web_monitoring_diff.utils.hash_content(validation_bytes)}"'
 
     async def get(self, differ):
-        # 1. Handle Caching
         self.set_etag_header()
         if self.check_etag_header():
             self.set_status(304)
             self.finish()
             return
-
-        # 2. Find the differ function
         try:
             func = self.differs[differ]
         except KeyError:
-            raise PublicError(404, f'Unknown diffing method: `{differ}`.')
-
+            raise PublicError(404, f"Unknown diffing method: `{differ}`.")
         query_params = self.decode_query_params()
         try:
-            urls = {param: query_params.pop(param) for param in ('a', 'b')}
+            urls = {param: query_params.pop(param) for param in ("a", "b")}
         except KeyError:
-            raise PublicError(400, 'Provide a URL for both `a` and `b`.')
-
-        # 3. Parallel Download 
-        requests = [self.fetch_diffable_content(url, query_params.pop(f'{param}_hash', None), query_params)
-                    for param, url in urls.items()]
+            raise PublicError(400, "Provide a URL for both `a` and `b`.")
+        requests = [
+            self.fetch_diffable_content(
+                url, query_params.pop(f"{param}_hash", None), query_params
+            )
+            for param, url in urls.items()
+        ]
         content = await asyncio.gather(*requests)
-
-        # 4. Delegate to Manager 
         res = await self.diff(func, content[0], content[1], query_params)
-        
-        # 5. Final Response Formatting
-        res['version'] = web_monitoring_diff.__version__
-        res.setdefault('type', differ)
+        res["version"] = web_monitoring_diff.__version__
+        res.setdefault("type", differ)
         self.write(res)
 
     async def diff(self, func, a, b, params, tries=2):
-        """Delegates work to the manager and handles unrecoverable pool failures."""
         try:
             return await self.application.executor_manager.run_diff(
                 caller, func, a, b, params, tries
             )
         except DiffPoolError:
-          
-            tornado.ioloop.IOLoop.current().add_callback(
-                self.application.quit, code=10)
+            tornado.ioloop.IOLoop.current().add_callback(self.application.quit, code=10)
             raise
 
     async def fetch_diffable_content(self, url, expected_hash, query_params):
-        """Fetch content with full error handling and protocol support."""
         response = None
-
-        if url.startswith('file://'):
-            if os.environ.get('WEB_MONITORING_APP_ENV') == 'production':
-                raise PublicError(403, 'Local files forbidden in production.')
-            with open(url[7:], 'rb') as f:
+        if url.startswith("file://"):
+            if os.environ.get("WEB_MONITORING_APP_ENV") == "production":
+                raise PublicError(403, "Local files forbidden in production.")
+            with open(url[7:], "rb") as f:
                 response = MockResponse(url, f.read())
-        
-        elif not url.startswith(('http://', 'https://')):
+        elif not url.startswith(("http://", "https://")):
             raise PublicError(400, f'URL must use HTTP or HTTPS: "{url}"')
-        
         else:
-            # Handle header passing 
             headers = {}
-            header_keys = query_params.get('pass_headers')
+            header_keys = query_params.get("pass_headers")
             if header_keys:
-                for key in header_keys.split(','):
+                for key in header_keys.split(","):
                     val = self.request.headers.get(key.strip())
-                    if val: headers[key.strip()] = val
-
+                    if val:
+                        headers[key.strip()] = val
             try:
                 client = get_http_client()
-                response = await client.fetch(url, headers=headers, 
-                                              validate_cert=VALIDATE_TARGET_CERTIFICATES)
-            except ValueError as error:
-                raise PublicError(400, str(error))
-            except OSError as error:
-                raise PublicError(502, f'Fetch error for "{url}": {error}')
-            
-            # --- DETAILED ERROR HANDLING ---
-            except tornado.simple_httpclient.HTTPTimeoutError:
-                raise PublicError(504, f'Timed out fetching "{url}"')
-            except tornado.simple_httpclient.HTTPStreamClosedError:
-                msg = f'Connection closed for "{url}"'
-                if getattr(client, 'max_body_size', None):
-                    msg += f' (Response might exceed {client.max_body_size} bytes)'
-                raise PublicError(502, msg)
-            except CurlError as error:
-                if error.errno == pycurl.E_URL_MALFORMAT:
-                    raise PublicError(400, str(error))
-                elif error.errno == pycurl.E_FILESIZE_EXCEEDED:
-                    raise PublicError(502, f'File too large for "{url}"')
-                elif error.errno in (pycurl.E_COULDNT_RESOLVE_PROXY, pycurl.E_COULDNT_CONNECT):
-                    raise PublicError(502, f'Connection failed for "{url}"')
-                elif error.errno == pycurl.E_OPERATION_TIMEDOUT:
-                    raise PublicError(504, f'Timed out fetching "{url}"')
-                else:
-                    raise PublicError(502, f'Unknown cURL error fetching "{url}"')
-            except tornado.httpclient.HTTPError as error:
-                
-                if error.response and error.response.headers.get('Memento-Datetime'):
+                response = await client.fetch(
+                    url, headers=headers, validate_cert=VALIDATE_TARGET_CERTIFICATES
+                )
+            except (tornado.httpclient.HTTPError, CurlError) as error:
+                if (
+                    isinstance(error, tornado.httpclient.HTTPError)
+                    and error.response
+                    and error.response.headers.get("Memento-Datetime")
+                ):
                     response = error.response
                 else:
-                    code = error.response.code if error.response else 502
-                    raise PublicError(502, f'Received status {code} from "{url}"')
-
-        # Validate Hash
+                    raise PublicError(502, f'Fetch error for "{url}": {error}')
         if response and expected_hash:
-            actual_hash = hashlib.sha256(response.body).hexdigest()
-            if actual_hash != expected_hash:
+            if hashlib.sha256(response.body).hexdigest() != expected_hash:
                 raise PublicError(502, f'Hash mismatch for "{url}"')
-
         return response
+
 
 def _extract_encoding(headers, content):
     encoding = None
-    content_type = headers.get('Content-Type', '').lower()
-    if 'charset=' in content_type:
-        encoding = content_type.split('charset=')[-1]
+    content_type = headers.get("Content-Type", "").lower()
+    if "charset=" in content_type:
+        encoding = content_type.split("charset=")[-1]
     if not encoding:
         meta_tag_match = META_TAG_PATTERN.search(content, endpos=2048)
         if meta_tag_match:
-            encoding = meta_tag_match.group(1).decode('ascii', errors='ignore')
+            encoding = meta_tag_match.group(1).decode("ascii", errors="ignore")
     if not encoding:
         prolog_match = XML_PROLOG_PATTERN.search(content, endpos=2048)
         if prolog_match:
-            encoding = prolog_match.group(1).decode('ascii', errors='ignore')
+            encoding = prolog_match.group(1).decode("ascii", errors="ignore")
     if encoding:
         encoding = encoding.strip()
     if not encoding and content:
@@ -396,40 +373,42 @@ def _extract_encoding(headers, content):
         # accurate.
         detected = chardet.detect(content[:18432])
         if detected:
-            detected_encoding = detected.get('encoding')
+            detected_encoding = detected.get("encoding")
             if detected_encoding:
                 encoding = detected_encoding.lower()
 
     # Handle common mistakes and errors in encoding names
-    if encoding == 'iso-8559-1':
-        encoding = 'iso-8859-1'
+    if encoding == "iso-8559-1":
+        encoding = "iso-8859-1"
     # Windows-1252 is so commonly mislabeled, WHATWG recommends assuming it's a
     # mistake: https://encoding.spec.whatwg.org/#names-and-labels
-    if encoding == 'iso-8859-1' and 'html' in content_type:
-        encoding = 'windows-1252'
+    if encoding == "iso-8859-1" and "html" in content_type:
+        encoding = "windows-1252"
     # Check if the selected encoding is known. If not, fallback to default.
     try:
         codecs.lookup(encoding)
     except (LookupError, ValueError, TypeError):
-        encoding = 'utf-8'
+        encoding = "utf-8"
     return encoding
 
 
 def _decode_body(response, name, raise_if_binary=True):
     encoding = _extract_encoding(response.headers, response.body)
-    text = response.body.decode(encoding, errors='replace')
+    text = response.body.decode(encoding, errors="replace")
     text_length = len(text)
     if text_length == 0:
         return text
 
     # Replace null terminators; some differs (especially those written in C)
     # don't handle them well in the middle of a string.
-    text = text.replace('\u0000', '\ufffd')
+    text = text.replace("\u0000", "\ufffd")
 
     # If a significantly large portion of the document was totally undecodable,
     # it's likely this wasn't text at all, but binary data.
-    if raise_if_binary and text.count('\ufffd') / text_length > 0.25:
-        raise UndecodableContentError(f'The response body of `{name}` could not be decoded as {encoding}.')
+    if raise_if_binary and text.count("\ufffd") / text_length > 0.25:
+        raise UndecodableContentError(
+            f"The response body of `{name}` could not be decoded as {encoding}."
+        )
 
     return text
 
@@ -463,25 +442,25 @@ def caller(func, a, b, **query_params):
     """
     # Supplement the query_parameters from the REST call with special items
     # extracted from `a` and `b`.
-    query_params.setdefault('a_url', a.request.url)
-    query_params.setdefault('b_url', b.request.url)
-    query_params.setdefault('a_body', a.body)
-    query_params.setdefault('b_body', b.body)
-    query_params.setdefault('a_headers', a.headers)
-    query_params.setdefault('b_headers', b.headers)
+    query_params.setdefault("a_url", a.request.url)
+    query_params.setdefault("b_url", b.request.url)
+    query_params.setdefault("a_body", a.body)
+    query_params.setdefault("b_body", b.body)
+    query_params.setdefault("a_headers", a.headers)
+    query_params.setdefault("b_headers", b.headers)
 
     # The differ's signature is a dependency injection scheme.
     sig = inspect.signature(func)
 
-    raise_if_binary = not query_params.get('ignore_decoding_errors', False)
-    if 'a_text' in sig.parameters:
+    raise_if_binary = not query_params.get("ignore_decoding_errors", False)
+    if "a_text" in sig.parameters:
         query_params.setdefault(
-            'a_text',
-            _decode_body(a, 'a', raise_if_binary=raise_if_binary))
-    if 'b_text' in sig.parameters:
+            "a_text", _decode_body(a, "a", raise_if_binary=raise_if_binary)
+        )
+    if "b_text" in sig.parameters:
         query_params.setdefault(
-            'b_text',
-            _decode_body(b, 'b', raise_if_binary=raise_if_binary))
+            "b_text", _decode_body(b, "b", raise_if_binary=raise_if_binary)
+        )
 
     kwargs = dict()
     for name, param in sig.parameters.items():
@@ -490,30 +469,37 @@ def caller(func, a, b, **query_params):
         except KeyError:
             if param.default is inspect._empty:
                 # This is a required argument.
-                raise KeyError("{} requires a parameter {} which was not "
-                               "provided in the query"
-                               "".format(func.__name__, name))
+                raise KeyError(
+                    "{} requires a parameter {} which was not "
+                    "provided in the query"
+                    "".format(func.__name__, name)
+                )
     return func(**kwargs)
 
 
 def make_app():
-    """Create the application with proper routes and no dead parameters."""
     class BoundDiffHandler(DiffHandler):
         differs = DIFF_ROUTES
 
-    return DiffServer([
-        (r"/healthcheck", HealthCheckHandler),
-        (r"/([A-Za-z0-9_]+)", BoundDiffHandler),
-        (r"/", IndexHandler),
-    ], debug=DEBUG_MODE, compress_response=True)
+    return DiffServer(
+        [
+            (r"/healthcheck", HealthCheckHandler),
+            (r"/([A-Za-z0-9_]+)", BoundDiffHandler),
+            (r"/", IndexHandler),
+        ],
+        debug=DEBUG_MODE,
+        compress_response=True,
+    )
 
 
 class IndexHandler(BaseHandler):
 
     async def get(self):
         # TODO Show swagger API or Markdown instead.
-        info = {'diff_types': list(DIFF_ROUTES),
-                'version': web_monitoring_diff.__version__}
+        info = {
+            "diff_types": list(DIFF_ROUTES),
+            "version": web_monitoring_diff.__version__,
+        }
         self.write(info)
 
 
@@ -523,7 +509,6 @@ class HealthCheckHandler(BaseHandler):
         # TODO Include more information about health here.
         # The 200 repsonse code with an empty object is just a liveness check.
         self.write({})
-
 
 
 def start_app(port):
@@ -540,7 +525,7 @@ def start_app(port):
         The port to listen on.
     """
     app = make_app()
-    print(f'Starting server on port {port}')
+    print(f"Starting server on port {port}")
     app.listen(port)
     with Signal((signal.SIGINT, signal.SIGTERM), app.handle_signal):
         tornado.ioloop.IOLoop.current().start()
@@ -551,11 +536,11 @@ def cli():
     Start the diff server from the CLI. This will parse the current process's
     arguments, start an event loop, and begin serving.
     """
-    parser = ArgumentParser(description='Start a diffing server.')
-    parser.add_argument('--version', action='store_true',
-                        help='Show version information')
-    parser.add_argument('--port', type=int, default=8888,
-                        help='Port to listen on')
+    parser = ArgumentParser(description="Start a diffing server.")
+    parser.add_argument(
+        "--version", action="store_true", help="Show version information"
+    )
+    parser.add_argument("--port", type=int, default=8888, help="Port to listen on")
     arguments = parser.parse_args()
 
     if arguments.version:
@@ -568,5 +553,5 @@ def cli():
     start_app(arguments.port)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     cli()
