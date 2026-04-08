@@ -201,7 +201,7 @@ class DiffServer(tornado.web.Application):
         super().__init__(handlers, **settings)
         self.terminating = False
         self.server = None
-        self._executor_manager = None  
+        self._executor_manager = None
 
     @property
     def executor_manager(self):
@@ -245,6 +245,7 @@ class DiffServer(tornado.web.Application):
                 sys.exit(1)
 
         loop.add_callback_from_signal(shutdown_and_stop)
+
 
 class BaseHandler(tornado.web.RequestHandler):
     def set_default_headers(self):
@@ -328,7 +329,9 @@ class DiffHandler(BaseHandler):
             )
         except DiffPoolError:
             if not self.application.executor_manager.restart_on_fail:
-                tornado.ioloop.IOLoop.current().add_callback(self.application.quit, code=10)
+                tornado.ioloop.IOLoop.current().add_callback(
+                    self.application.quit, code=10
+                )
             raise
 
     async def fetch_diffable_content(self, url, expected_hash, query_params):
@@ -354,11 +357,15 @@ class DiffHandler(BaseHandler):
                     url, headers=headers, validate_cert=VALIDATE_TARGET_CERTIFICATES
                 )
             except (tornado.httpclient.HTTPError, CurlError) as error:
-                if isinstance(error, tornado.httpclient.HTTPError) and error.response and error.response.headers.get("Memento-Datetime"):
+                if (
+                    isinstance(error, tornado.httpclient.HTTPError)
+                    and error.response
+                    and error.response.headers.get("Memento-Datetime")
+                ):
                     response = error.response
-                else: 
+                else:
                     status_code = 502
-                    if getattr(error, 'code', 0) == 599:
+                    if getattr(error, "code", 0) == 599:
                         status_code = 504
                         if "Maximum file size" in str(error):
                             status_code = 502
@@ -368,8 +375,9 @@ class DiffHandler(BaseHandler):
 
         if response and expected_hash:
             if hashlib.sha256(response.body).hexdigest() != expected_hash:
-                raise PublicError(502, f'hash mismatch for "{url}"') 
+                raise PublicError(502, f'hash mismatch for "{url}"')
         return response
+
 
 def _extract_encoding(headers, content):
     encoding = None
@@ -473,7 +481,7 @@ def caller(func, a, b, **query_params):
     sig = inspect.signature(func)
 
     raise_if_binary = not query_params.get("ignore_decoding_errors", False)
-    
+
     try:
         if "a_text" in sig.parameters:
             query_params.setdefault(

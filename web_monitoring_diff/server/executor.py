@@ -26,7 +26,7 @@ class DiffExecutorManager:
 
     async def _reset_executor(self):
         old_executor = self.executor
-        self.executor = None  
+        self.executor = None
         if old_executor:
             try:
                 await shutdown_executor_in_loop(old_executor)
@@ -50,7 +50,7 @@ class DiffExecutorManager:
         if self.max_diffs_per_worker > 0:
             async with self._lock:
                 self.remaining_diffs -= 1
-                
+
         for attempt in range(tries):
             executor = await self.get_executor(force_reset=False)
             try:
