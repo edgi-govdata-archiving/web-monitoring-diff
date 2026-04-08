@@ -12,6 +12,7 @@ class DiffPoolError(Exception):
 
     pass
 
+
 class DiffExecutorManager:
     def __init__(self, parallelism, max_diffs, initializer, restart_on_fail=True):
         self.parallelism = parallelism

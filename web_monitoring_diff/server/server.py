@@ -23,6 +23,7 @@ from .. import basic_diffs, html_render_diff, html_links_diff
 from ..exceptions import UndecodableContentError
 from ..utils import Signal
 from .executor import DiffExecutorManager, DiffPoolError
+import json
 
 # Where possible, use cchardet (or faust-cchardet) for performance.
 # Unfortunately these aren't supported in the latest Python vesions, so we also
@@ -260,6 +261,19 @@ class BaseHandler(tornado.web.RequestHandler):
             self.set_header("Access-Control-Allow-Headers", "x-requested-with")
             self.set_header("Access-Control-Allow-Methods", "GET, OPTIONS")
 
+    def write_error(self, status_code, **kwargs):
+        """Override Tornado's default HTML error page with a JSON response."""
+        self.set_header("Content-Type", "application/json")
+
+        response = {"error": self._reason, "code": status_code}
+
+        if "exc_info" in kwargs:
+            exc = kwargs["exc_info"][1]
+            if isinstance(exc, PublicError) and exc.extra:
+                response.update(exc.extra)
+
+        self.finish(json.dumps(response))
+
 
 class DiffHandler(BaseHandler):
     def get_diff_executor(self, reset=False):
@@ -344,7 +358,9 @@ class DiffHandler(BaseHandler):
                 ):
                     response = error.response
                 else:
-                    raise PublicError(502, f'Fetch error for "{url}": {error}')
+                    status_code = 504 if getattr(error, "code", 0) == 599 else 502
+                    raise PublicError(status_code, f'Fetch error for "{url}": {error}')
+
         if response and expected_hash:
             if hashlib.sha256(response.body).hexdigest() != expected_hash:
                 raise PublicError(502, f'Hash mismatch for "{url}"')
