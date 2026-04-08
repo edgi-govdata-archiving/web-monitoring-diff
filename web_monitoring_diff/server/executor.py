@@ -25,9 +25,11 @@ class DiffExecutorManager:
         self._lock = asyncio.Lock()
 
     async def _reset_executor(self):
-        if self.executor:
+        old_executor = self.executor
+        self.executor = None  
+        if old_executor:
             try:
-                await shutdown_executor_in_loop(self.executor)
+                await shutdown_executor_in_loop(old_executor)
             except Exception:
                 pass
         self.executor = concurrent.futures.ProcessPoolExecutor(
@@ -48,9 +50,9 @@ class DiffExecutorManager:
         if self.max_diffs_per_worker > 0:
             async with self._lock:
                 self.remaining_diffs -= 1
-        force_reset = False
+                
         for attempt in range(tries):
-            executor = await self.get_executor(force_reset=force_reset)
+            executor = await self.get_executor(force_reset=False)
             try:
                 loop = asyncio.get_running_loop()
                 return await loop.run_in_executor(
@@ -59,7 +61,10 @@ class DiffExecutorManager:
             except concurrent.futures.process.BrokenProcessPool:
                 if attempt + 1 < tries:
                     logger.warning("Process pool broken; signaling reset for retry...")
-                    force_reset = True
+                    async with self._lock:
+                        current_exec = await self.get_executor(force_reset=False)
+                        if current_exec is executor:
+                            await self.get_executor(force_reset=True)
                 else:
                     if not self.restart_on_fail:
                         logger.error("Process pool failed; quitting...")

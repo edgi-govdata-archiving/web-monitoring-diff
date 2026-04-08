@@ -201,12 +201,18 @@ class DiffServer(tornado.web.Application):
         super().__init__(handlers, **settings)
         self.terminating = False
         self.server = None
-        self.executor_manager = DiffExecutorManager(
-            parallelism=DIFFER_PARALLELISM,
-            max_diffs=MAX_DIFFS_PER_WORKER,
-            initializer=initialize_diff_worker,
-            restart_on_fail=RESTART_BROKEN_DIFFER,
-        )
+        self._executor_manager = None  
+
+    @property
+    def executor_manager(self):
+        if self._executor_manager is None:
+            self._executor_manager = DiffExecutorManager(
+                parallelism=DIFFER_PARALLELISM,
+                max_diffs=MAX_DIFFS_PER_WORKER,
+                initializer=initialize_diff_worker,
+                restart_on_fail=RESTART_BROKEN_DIFFER,
+            )
+        return self._executor_manager
 
     def listen(self, port, address="", **kwargs):
         self.server = super().listen(port, address, **kwargs)
@@ -216,8 +222,8 @@ class DiffServer(tornado.web.Application):
         self.terminating = True
         if self.server:
             self.server.stop()
-        if self.executor_manager:
-            await self.executor_manager.shutdown(immediate)
+        if self._executor_manager:
+            await self._executor_manager.shutdown(immediate)
         if self.server:
             await self.server.close_all_connections()
 
@@ -240,7 +246,6 @@ class DiffServer(tornado.web.Application):
 
         loop.add_callback_from_signal(shutdown_and_stop)
 
-
 class BaseHandler(tornado.web.RequestHandler):
     def set_default_headers(self):
 
@@ -262,16 +267,13 @@ class BaseHandler(tornado.web.RequestHandler):
             self.set_header("Access-Control-Allow-Methods", "GET, OPTIONS")
 
     def write_error(self, status_code, **kwargs):
-        """Override Tornado's default HTML error page with a JSON response."""
+        """Force Tornado to return JSON on errors instead of HTML pages."""
         self.set_header("Content-Type", "application/json")
-
         response = {"error": self._reason, "code": status_code}
-
         if "exc_info" in kwargs:
             exc = kwargs["exc_info"][1]
             if isinstance(exc, PublicError) and exc.extra:
                 response.update(exc.extra)
-
         self.finish(json.dumps(response))
 
 
@@ -325,7 +327,8 @@ class DiffHandler(BaseHandler):
                 caller, func, a, b, params, tries
             )
         except DiffPoolError:
-            tornado.ioloop.IOLoop.current().add_callback(self.application.quit, code=10)
+            if not self.application.executor_manager.restart_on_fail:
+                tornado.ioloop.IOLoop.current().add_callback(self.application.quit, code=10)
             raise
 
     async def fetch_diffable_content(self, url, expected_hash, query_params):
@@ -351,21 +354,22 @@ class DiffHandler(BaseHandler):
                     url, headers=headers, validate_cert=VALIDATE_TARGET_CERTIFICATES
                 )
             except (tornado.httpclient.HTTPError, CurlError) as error:
-                if (
-                    isinstance(error, tornado.httpclient.HTTPError)
-                    and error.response
-                    and error.response.headers.get("Memento-Datetime")
-                ):
+                if isinstance(error, tornado.httpclient.HTTPError) and error.response and error.response.headers.get("Memento-Datetime"):
                     response = error.response
-                else:
-                    status_code = 504 if getattr(error, "code", 0) == 599 else 502
+                else: 
+                    status_code = 502
+                    if getattr(error, 'code', 0) == 599:
+                        status_code = 504
+                        if "Maximum file size" in str(error):
+                            status_code = 502
                     raise PublicError(status_code, f'Fetch error for "{url}": {error}')
+            except OSError as error:
+                raise PublicError(502, f'Connection error for "{url}": {error}')
 
         if response and expected_hash:
             if hashlib.sha256(response.body).hexdigest() != expected_hash:
-                raise PublicError(502, f'Hash mismatch for "{url}"')
+                raise PublicError(502, f'hash mismatch for "{url}"') 
         return response
-
 
 def _extract_encoding(headers, content):
     encoding = None
@@ -469,14 +473,18 @@ def caller(func, a, b, **query_params):
     sig = inspect.signature(func)
 
     raise_if_binary = not query_params.get("ignore_decoding_errors", False)
-    if "a_text" in sig.parameters:
-        query_params.setdefault(
-            "a_text", _decode_body(a, "a", raise_if_binary=raise_if_binary)
-        )
-    if "b_text" in sig.parameters:
-        query_params.setdefault(
-            "b_text", _decode_body(b, "b", raise_if_binary=raise_if_binary)
-        )
+    
+    try:
+        if "a_text" in sig.parameters:
+            query_params.setdefault(
+                "a_text", _decode_body(a, "a", raise_if_binary=raise_if_binary)
+            )
+        if "b_text" in sig.parameters:
+            query_params.setdefault(
+                "b_text", _decode_body(b, "b", raise_if_binary=raise_if_binary)
+            )
+    except UndecodableContentError as e:
+        raise PublicError(422, str(e))
 
     kwargs = dict()
     for name, param in sig.parameters.items():
