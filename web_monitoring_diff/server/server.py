@@ -22,6 +22,7 @@ import traceback
 import web_monitoring_diff
 from .mock_http import MockResponse
 from .errors import PublicError
+from .http_client import LimitedCurlAsyncHTTPClient
 from .. import basic_diffs, html_render_diff, html_links_diff
 from ..exceptions import UndiffableContentError, UndecodableContentError
 from ..utils import shutdown_executor_in_loop, Signal
