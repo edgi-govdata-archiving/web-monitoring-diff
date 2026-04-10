@@ -554,10 +554,8 @@ def _htmldiff(old, new, comparator, include='all'):
     """
     old_tokens = tokenize(old, comparator)
     new_tokens = tokenize(new, comparator)
-    # old_tokens = [_customize_token(token) for token in old_tokens]
-    # new_tokens = [_customize_token(token) for token in new_tokens]
-    old_tokens = _limit_spacers(_customize_tokens(old_tokens), MAX_SPACERS)
-    new_tokens = _limit_spacers(_customize_tokens(new_tokens), MAX_SPACERS)
+    old_tokens = _insert_spacers(old_tokens, MAX_SPACERS)
+    new_tokens = _insert_spacers(new_tokens, MAX_SPACERS)
     # result = htmldiff_tokens(old_tokens, new_tokens)
     # result = diff_tokens(old_tokens, new_tokens) #, include='delete')
     logger.debug('CUSTOMIZED!')
@@ -588,23 +586,6 @@ def _htmldiff(old, new, comparator, include='all'):
     return metadata, diffs
 
 
-# FIXME: this is utterly ridiculous -- the crazy spacer token solution we came
-# up with can add so much extra stuff to some kinds of pages that
-# SequenceMatcher chokes on it. This strips out excess spacers. We should
-# really re-examine the whole spacer token concept now that we control the
-# tokenization phase, though.
-def _limit_spacers(tokens, max_spacers):
-    limited_tokens = []
-    for token in tokens:
-        if isinstance(token, SpacerToken):
-            if max_spacers <= 0:
-                continue
-            max_spacers -= 1
-        limited_tokens.append(token)
-
-    return limited_tokens
-
-
 def _count_changes(opcodes):
     counts = Counter(map(lambda operation: operation[0], opcodes))
     return {
@@ -619,8 +600,9 @@ def _count_changes(opcodes):
 # lxml.html.diff. We plan to change it significantly.
 
 def expand_tokens(tokens, equal=False):
-    """Given a list of tokens, return a generator of the chunks of
-    text for the data in the tokens.
+    """
+    Given a list of tokens, return a generator of the chunks of text for the
+    data in the tokens.
     """
     for token in tokens:
         for pre in token.pre_tags:
@@ -635,7 +617,8 @@ def expand_tokens(tokens, equal=False):
 
 
 class DiffToken(str):
-    """ Represents a diffable token, generally a word that is displayed to
+    """
+    Represents a diffable token, generally a word that is displayed to
     the user.  Opening tags are attached to this token when they are
     adjacent (pre_tags) and closing tags that follow the word
     (post_tags).  Some exceptions occur when there are empty tags
@@ -645,7 +628,8 @@ class DiffToken(str):
     We also keep track of whether the word was originally followed by
     whitespace, even though we do not want to treat the word as
     equivalent to a similar word that does not have a trailing
-    space."""
+    space.
+    """
 
     # When this is true, the token will be eliminated from the
     # displayed diff if no change has occurred:
@@ -677,10 +661,11 @@ class DiffToken(str):
 
 
 class tag_token(DiffToken):
-
-    """ Represents a token that is actually a tag.  Currently this is just
+    """
+    Represents a token that is actually a tag.  Currently this is just
     the <img> tag, which takes up visible space just like a word but
-    is only represented in a document by a tag.  """
+    is only represented in a document by a tag.
+    """
 
     def __new__(cls, tag, data, html_repr, comparator, pre_tags=None,
                 post_tags=None, trailing_whitespace=""):
@@ -708,8 +693,10 @@ class tag_token(DiffToken):
 
 
 class href_token(DiffToken):
-    """ Represents the href in an anchor tag.  Unlike other words, we only
-    show the href when it changes.  """
+    """
+    Represents the href in an anchor tag.  Unlike other words, we only
+    show the href when it changes.
+    """
 
     hide_when_equal = True
 
@@ -813,7 +800,7 @@ def fixup_chunks(chunks, comparator):
 
         elif current_token == TokenType.href:
             href = chunk[1]
-            cur_word = href_token(href, comparator=comparator, pre_tags=tag_accum, trailing_whitespace=" ")
+            cur_word = MinimalHrefToken(href, comparator=comparator, pre_tags=tag_accum, trailing_whitespace=" ")
             tag_accum = []
             result.append(cur_word)
 
@@ -832,6 +819,19 @@ def fixup_chunks(chunks, comparator):
             tag_accum.append(chunk[1])
 
         elif current_token == TokenType.end_tag:
+            # Ensure any closing tags get added to the previous token as
+            # `post_tags`, rather than the next token as `pre_tags`. This makes
+            # placing the end of elements in the right place when re-assembling
+            # the final diff from added/removed tokens easier to do.
+            #
+            # That is, given HTML like:
+            #
+            #    <p><a>Hello!</a></p><div>…there.</div>
+            #
+            # We want output like:
+            #
+            #    [('Hello!', pre=['<p>','<a>'], post=['</a>','</p>']),
+            #     ('…there.', pre=[<div>'], post=['</div>'])]
             if tag_accum:
                 tag_accum.append(chunk[1])
             else:
@@ -851,12 +851,14 @@ def fixup_chunks(chunks, comparator):
 
 
 def flatten_el(el, include_hrefs, skip_tag=False):
-    """ Takes an lxml element el, and generates all the text chunks for
+    """
+    Takes an lxml element el, and generates all the text chunks for
     that tag.  Each start tag is a chunk, each word is a chunk, and each
     end tag is a chunk.
 
     If skip_tag is true, then the outermost container tag is
-    not returned (just its contents)."""
+    not returned (just its contents).
+    """
     if not skip_tag:
         if el.tag == 'img':
             src_array = []
@@ -899,8 +901,10 @@ def flatten_el(el, include_hrefs, skip_tag=False):
 split_words_re = re.compile(r'\S+(?:\s+|$)', re.U)
 
 def split_words(text):
-    """ Splits some text into words. Includes trailing whitespace
-    on each word when appropriate.  """
+    """
+    Splits some text into words. Includes trailing whitespace on each word when
+    appropriate.
+    """
     if not text or not text.strip():
         return []
 
@@ -918,8 +922,10 @@ def start_tag(el):
                          for name, value in el.attrib.items()]))
 
 def end_tag(el):
-    """ The text representation of an end tag for a tag.  Includes
-    trailing whitespace when appropriate.  """
+    """
+    The text representation of an end tag for a tag.  Includes trailing
+    whitespace when appropriate.
+    """
     if el.tail and start_whitespace_re.search(el.tail):
         extra = ' '
     else:
@@ -1007,60 +1013,38 @@ class ImgTagToken(tag_token):
         return super().__hash__()
 
 
-def _customize_tokens(tokens):
+# FIXME: Add a `max` parameter or similar to limit the number of spacers. We
+# currently do this by making a second pass to remove extra spacers
+# (in `_limit_spacers()`), which is completely pointless extra work, and very
+# expensive on big HTML documents.
+#
+# TODO: This entire bit of functionality should be rethought. The spacers were
+# a bit of a hack from the early days when we were slightly customizing lxml's
+# differ, and we've since changed the internals a lot. The spacers have never
+# worked especially well, and we may be better off without them. This needs
+# *lots* of testing, though.
+def _insert_spacers(tokens, max = MAX_SPACERS):
+    if max < 1:
+        return tokens
+
     SPACER_STRING = '\nSPACER'
 
-    # Balance out pre- and post-tags so that a token of text is surrounded by
-    # the opening and closing tags of the element it's in. For example:
-    #
-    #    <p><a>Hello!</a></p><div>…there.</div>
-    #
-    # Currently parses as:
-    #    [('Hello!', pre=['<p>','<a>'], post=[]),
-    #     ('…there.', pre=['</a>','</p>','<div>'], post=['</div>'])]
-    #    (Note the '</div>' post tag is only present at the end of the doc)
-    #
-    # But this attempts make it more like:
-    #
-    #    [('Hello!', pre=['<p>','<a>'], post=['</a>','</p>']),
-    #     ('…there.', pre=[<div>'], post=['</div>'])]
-    #
-    # TODO: when we get around to also forking the parse/tokenize part of this
-    # diff, do this as part of the original tokenization instead.
-    for token_index, token in enumerate(tokens):
-        # logger.debug(f'Handling token {token_index}: {token}')
-        if token_index == 0:
-            continue
-        previous = tokens[token_index - 1]
-        previous_post_complete = False
-        for post_index, tag in enumerate(previous.post_tags):
-            if not tag.startswith('</'):
-                # TODO: should we attempt to fill pure-structure tags here with
-                # spacers? e.g. should we take the "<p><em></em></p>" here and
-                # wrap a spacer token in it instead of moving to "next-text's"
-                # pre_tags? "text</p><p><em></em></p><p>next-text"
-                token.pre_tags = previous.post_tags[post_index:] + token.pre_tags
-                previous.post_tags = previous.post_tags[:post_index]
-                previous_post_complete = True
-                break
-
-        if not previous_post_complete:
-            for pre_index, tag in enumerate(token.pre_tags):
-                if not tag.startswith('</'):
-                    if pre_index > 0:
-                        previous.post_tags.extend(token.pre_tags[:pre_index])
-                        token.pre_tags = token.pre_tags[pre_index:]
-                    break
-            else:
-                previous.post_tags.extend(token.pre_tags)
-                token.pre_tags = []
-
-
-        # logger.debug(f'  Result...\n    pre: {token.pre_tags}\n    token: "{token}"\n    post: {token.post_tags}')
+    def allocate_spacer(count = 1):
+        nonlocal max
+        if max < count:
+            return False
+        else:
+            max -= count
+            return True
 
     result = []
     # for token in tokens:
     for token_index, token in enumerate(tokens):
+        # Bail out early if we've run out of spacers.
+        if max < 1:
+            result.append(token)
+            continue
+
         # if str(token).lower().startswith('impacts'):
         # if str(token).lower().startswith('although'):
         #     logger.debug(f'SPECIAL TAG!\n  pre: {token.pre_tags}\n  token: "{token}"\n  post: {token.post_tags}')
@@ -1076,6 +1060,7 @@ def _customize_tokens(tokens):
         try_splitting = len(token.pre_tags) > 0
         split_start = 0
         while try_splitting:
+            try_splitting = False
             for tag_index, tag in enumerate(token.pre_tags[split_start:]):
                 split_here = False
                 for name in SEPARATABLE_TAGS:
@@ -1083,22 +1068,21 @@ def _customize_tokens(tokens):
                         split_here = True
                         break
                 if split_here:
-                    # new_token = SpacerToken(SPACER_STRING, pre_tags=token.pre_tags[0:tag_index + 1])
-                    # token.pre_tags = token.pre_tags[tag_index + 1:]
+                    if allocate_spacer(3):
+                        # new_token = SpacerToken(SPACER_STRING, pre_tags=token.pre_tags[0:tag_index + 1])
+                        # token.pre_tags = token.pre_tags[tag_index + 1:]
 
-                    new_token = SpacerToken(SPACER_STRING, pre_tags=token.pre_tags[0:tag_index + split_start])
-                    token.pre_tags = token.pre_tags[tag_index + split_start:]
+                        new_token = SpacerToken(SPACER_STRING, pre_tags=token.pre_tags[0:tag_index + split_start])
+                        token.pre_tags = token.pre_tags[tag_index + split_start:]
 
-                    # tokens.insert(token_index + 1, token)
-                    # token = new_token
-                    result.append(new_token)
-                    result.append(SpacerToken(SPACER_STRING))
-                    result.append(SpacerToken(SPACER_STRING))
-                    try_splitting = len(token.pre_tags) > 1
-                    split_start = 1
+                        # tokens.insert(token_index + 1, token)
+                        # token = new_token
+                        result.append(new_token)
+                        result.append(SpacerToken(SPACER_STRING))
+                        result.append(SpacerToken(SPACER_STRING))
+                        try_splitting = len(token.pre_tags) > 1
+                        split_start = 1
                     break
-                else:
-                    try_splitting = False
 
 
         # This is a CRITICAL scenario, but should probably be generalized and
@@ -1113,7 +1097,7 @@ def _customize_tokens(tokens):
         for index, tag in enumerate(token.pre_tags):
             if tag.startswith('<a') and len(token.pre_tags) > index + 1:
                 next_tag = token.pre_tags[index + 1]
-                if next_tag and next_tag.startswith('</a'):
+                if next_tag and next_tag.startswith('</a') and allocate_spacer():
                     result.append(SpacerToken('~EMPTY~', pre_tags=token.pre_tags[0:index], post_tags=token.pre_tags[index:]))
                     token.pre_tags = []
 
@@ -1123,20 +1107,19 @@ def _customize_tokens(tokens):
         #     result.append(SpacerToken(SPACER_STRING))
         #     result.append(SpacerToken(SPACER_STRING))
 
-        customized = _customize_token(token)
-        result.append(customized)
+        result.append(token)
 
-        if str(customized) == "Posts" and str(tokens[token_index - 1]) == 'Other' and str(tokens[token_index - 2]) == 'and': # and str(tokens[token_index - 3]) == 'posts':
+        if str(token) == "Posts" and str(tokens[token_index - 1]) == 'Other' and str(tokens[token_index - 2]) == 'and': # and str(tokens[token_index - 3]) == 'posts':
             logger.debug(f'SPECIAL TAG!\n  pre: {token.pre_tags}\n  token: "{token}"\n  post: {token.post_tags}')
             next_token = tokens[token_index + 1]
             logger.debug(f'SPECIAL TAG!\n  pre: {next_token.pre_tags}\n  token: "{next_token}"\n  post: {next_token.post_tags}')
-            for tag_index, tag in enumerate(customized.post_tags):
-                if tag.startswith('</ul>'):
+            for tag_index, tag in enumerate(token.post_tags):
+                if tag.startswith('</ul>') and allocate_spacer(2):
                     new_token = SpacerToken(SPACER_STRING)
                     result.append(new_token)
-                    new_token = SpacerToken(SPACER_STRING, pre_tags=customized.post_tags[tag_index:])
+                    new_token = SpacerToken(SPACER_STRING, pre_tags=token.post_tags[tag_index:])
                     result.append(new_token)
-                    customized.post_tags = customized.post_tags[:tag_index]
+                    token.post_tags = token.post_tags[:tag_index]
 
         # if isinstance(customized, ImgTagToken):
         #     result.append(SpacerToken(SPACER_STRING))
@@ -1154,27 +1137,28 @@ def _customize_tokens(tokens):
         #     # result.append(SpacerToken(SPACER_STRING, post_tags=customized.post_tags, trailing_whitespace=customized.trailing_whitespace))
         #     customized.post_tags = []
         #     # customized.trailing_whitespace = ''
-        for tag_index, tag in enumerate(customized.post_tags):
+        for tag_index, tag in enumerate(token.post_tags):
             split_here = False
             for name in SEPARATABLE_TAGS:
                 if tag.startswith(f'<{name}'):
                     split_here = True
                     break
             if split_here:
-                # new_token = SpacerToken(SPACER_STRING, pre_tags=customized.post_tags[tag_index + 1:])
-                # customized.post_tags = customized.post_tags[0:tag_index + 1]
+                if allocate_spacer(3):
+                    # new_token = SpacerToken(SPACER_STRING, pre_tags=customized.post_tags[tag_index + 1:])
+                    # customized.post_tags = customized.post_tags[0:tag_index + 1]
 
-                # new_token = SpacerToken(SPACER_STRING, pre_tags=customized.post_tags[tag_index:])
-                # customized.post_tags = customized.post_tags[0:tag_index]
+                    # new_token = SpacerToken(SPACER_STRING, pre_tags=customized.post_tags[tag_index:])
+                    # customized.post_tags = customized.post_tags[0:tag_index]
 
-                new_token = SpacerToken(SPACER_STRING, post_tags=customized.post_tags[tag_index:])
-                customized.post_tags = customized.post_tags[0:tag_index]
+                    new_token = SpacerToken(SPACER_STRING, post_tags=token.post_tags[tag_index:])
+                    token.post_tags = token.post_tags[0:tag_index]
 
-                # tokens.insert(token_index + 1, token)
-                # token = new_token
-                result.append(new_token)
-                result.append(SpacerToken(SPACER_STRING))
-                result.append(SpacerToken(SPACER_STRING))
+                    # tokens.insert(token_index + 1, token)
+                    # token = new_token
+                    result.append(new_token)
+                    result.append(SpacerToken(SPACER_STRING))
+                    result.append(SpacerToken(SPACER_STRING))
                 break
 
     return result
@@ -1202,25 +1186,6 @@ def _has_heading_tags(tag_list):
         for name in HEADING_TAGS:
             if tag.startswith(f'<{name}') or tag.startswith(f'</{name}'):
                 return True
-
-
-# Seemed so nice and clean! But should probably be merged into
-# `_customize_tokens()` now. Or otherwise it needs to be able to produce more
-# than one token to replace the given token in the stream.
-def _customize_token(token):
-    """
-    Replace existing diffing tokens with customized ones for better output.
-    """
-    if isinstance(token, href_token):
-        return MinimalHrefToken(
-            str(token),
-            comparator=token.comparator,
-            pre_tags=token.pre_tags,
-            post_tags=token.post_tags,
-            trailing_whitespace=token.trailing_whitespace)
-        # return token
-    else:
-        return token
 
 
 # TODO: merge and reconcile this with `merge_change_groups()`, which is 90%
@@ -1881,7 +1846,7 @@ def get_diff_styles():
         script {{display: none !important;}}'''
 
 
-UPDATE_CONTRAST_SCRIPT = """
+UPDATE_CONTRAST_SCRIPT = r"""
     (function () {
         // Update the text color of change elements to ensure a readable level
         // of contrast with the background color
