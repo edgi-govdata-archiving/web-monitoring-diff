@@ -35,3 +35,4 @@ class PublicError(tornado.web.HTTPError):
                 log_message = public_message
 
         super().__init__(status_code, log_message, **kwargs)
+        

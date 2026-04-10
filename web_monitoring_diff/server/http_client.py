@@ -21,3 +21,4 @@ class LimitedCurlAsyncHTTPClient(CurlAsyncHTTPClient):
             # send a Content-Length header, but it seems to do just fine in
             # tests. ¯\_(ツ)_/¯
             curl.setopt(pycurl.MAXFILESIZE, self.max_body_size)
+            
