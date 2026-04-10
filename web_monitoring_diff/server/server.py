@@ -13,7 +13,7 @@ import sentry_sdk
 import signal
 import sys
 from dotenv import load_dotenv
-from tornado.curl_httpclient import CurlAsyncHTTPClient, CurlError
+from tornado.curl_httpclient import CurlError
 import tornado.simple_httpclient
 import tornado.httpclient
 import tornado.ioloop
