@@ -82,3 +82,13 @@ build.hooks.vcs.version-file = "web_monitoring_diff/_version.py"
 # need this for git depenencies
 [tool.hatch.metadata]
 allow-direct-references = true
+
+[tool.pytest]
+filterwarnings = [
+    # We want to be alerted when upgrades introduce deprecations to features
+    # we use. When testing our own deprecation warnings, those tests should be
+    # marked so they don't raise because of this rule.
+    "error::DeprecationWarning:",
+    # Add any specific deprecations that shouldn't be considered errors like:
+    # "default:Regex for warning message:DeprecationWarning",
+]
