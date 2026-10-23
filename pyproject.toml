@@ -37,7 +37,7 @@ server = [
 # Development-related dependencies (for building, running tests, etc.)
 dev = [
     "coverage ~=7.13",
-    "flake8 ~=7.3.0",
+    "flake8 >=7.3,<7.5",
     "pytest ~=9.0.2",
 ]
 # Tools for building documentation. Some of our docs tools conflict with dev
