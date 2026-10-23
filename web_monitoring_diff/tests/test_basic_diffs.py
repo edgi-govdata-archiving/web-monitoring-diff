@@ -1,5 +1,3 @@
-import warnings
-
 import web_monitoring_diff.basic_diffs as wd
 
 
@@ -61,17 +59,3 @@ def test_get_visible_text():
     html = '<!--First comment--><h1>First Heading</h1><p>First paragraph.</p>'
     actual = wd._get_visible_text(html)
     assert actual == 'First Heading First paragraph.'
-
-
-def test_get_text_does_not_use_deprecated_beautifulsoup_argument():
-    with warnings.catch_warnings(record=True) as caught:
-        warnings.simplefilter('always')
-        actual = wd._get_text('<p>Visible text</p>')
-
-    assert not [
-        warning
-        for warning in caught
-        if issubclass(warning.category, DeprecationWarning)
-        and "'text' argument" in str(warning.message)
-    ]
-    assert [str(text) for text in actual] == ['Visible text']

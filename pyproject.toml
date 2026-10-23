@@ -82,3 +82,8 @@ build.hooks.vcs.version-file = "web_monitoring_diff/_version.py"
 # need this for git depenencies
 [tool.hatch.metadata]
 allow-direct-references = true
+
+[tool.pytest.ini_options]
+filterwarnings = [
+    "error:The 'text' argument:DeprecationWarning",
+]
