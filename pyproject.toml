@@ -88,7 +88,7 @@ filterwarnings = [
     "default",
     # We want to be alerted when upgrades introduce deprecations to features
     # we use. When testing our own deprecation warnings, those tests should be
-    # marked so they don't raise because of this rule.
+    # marked with `@pytest.mark.filterwarnings` to avoid hitting this rule.
     "error::DeprecationWarning:",
     # Don't turn deprecation warnings about invalid escapes into errors. Doing
     # so affects how .pyc compilation works, and interacts problematically with
