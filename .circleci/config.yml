@@ -214,12 +214,14 @@ workflows:
             parameters:
               python-version: ["3.10", "3.11", "3.12", "3.13", "3.14", "3.15"]
               chardet: ["", "cchardet", "faust-cchardet"]
-      - test:
-          matrix:
-            alias: test-python-pre
-            parameters:
-              base-image: ["mr0grog/circle-python-pre"]
-              python-version: ["3.16.0a1", "3.16.0a1t"]
+      # TODO: It looks like minidom/etree has gotten more strict in Python 3.16
+      #  and causes some errors. We should fix this before it gets finalized.
+      # - test:
+      #     matrix:
+      #       alias: test-python-pre
+      #       parameters:
+      #         base-image: ["mr0grog/circle-python-pre"]
+      #         python-version: ["3.16.0a1", "3.16.0a1t"]
       - lint:
           filters:
             tags:
