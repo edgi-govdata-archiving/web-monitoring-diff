@@ -105,7 +105,7 @@ jobs:
 
   build_docker:
     machine:
-      image: ubuntu-2404:2025.09.1
+      image: ubuntu-2604:current
       docker_layer_caching: true
     steps:
       - run:
@@ -139,7 +139,7 @@ jobs:
 
   publish_docker:
     machine:
-      image: ubuntu-2004:202111-02
+      image: ubuntu-2604:current
     steps:
       - attach_workspace:
           at: /tmp/workspace
@@ -212,23 +212,14 @@ workflows:
               only: /^v.*/
           matrix:
             parameters:
-              python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+              python-version: ["3.10", "3.11", "3.12", "3.13", "3.14", "3.15"]
               chardet: ["", "cchardet", "faust-cchardet"]
-            exclude:
-              - python-version: "3.11"
-                chardet: "cchardet"
-              - python-version: "3.12"
-                chardet: "cchardet"
-              - python-version: "3.13"
-                chardet: "cchardet"
-              - python-version: "3.14"
-                chardet: "cchardet"
       - test:
           matrix:
             alias: test-python-pre
             parameters:
               base-image: ["mr0grog/circle-python-pre"]
-              python-version: ["3.15.0", "3.15.0t"]
+              python-version: ["3.16.0a1", "3.16.0a1t"]
       - lint:
           filters:
             tags:
