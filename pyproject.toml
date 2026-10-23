@@ -38,7 +38,7 @@ server = [
 dev = [
     "coverage ~=7.13",
     "flake8 ~=7.4.1",
-    "pytest ~=9.0.2",
+    "pytest ~=9.1.1",
 ]
 # Tools for building documentation. Some of our docs tools conflict with dev
 # tools on Python < 10, so docs tools are listed here in order to make it
