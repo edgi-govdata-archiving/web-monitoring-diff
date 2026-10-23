@@ -7,6 +7,8 @@ In Development
 
 - Move mock request/response classes into a separate submodule of `server`. (:issue:`226`)
 - Server automatically loads configuration from `.env` file if present. (:issue:`247`)
+- ``DIFFER_MAX_BODY_SIZE`` now *actually* defaults to 10 MB, as documented. If set, it also now requires a value greater than 0. It previously defaulted to no limit at all, and a value of ``0`` also previously indicated no limit. (:issue:`256`)
+- Support Tonado v3.5.9 and newer. We had some subtle bugs caused by security fixes in newer Tornado releases. (:issue:`256`)
 
 
 Version 0.2.0 (2026-03-16)

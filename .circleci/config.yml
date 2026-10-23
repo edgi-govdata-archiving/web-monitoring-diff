@@ -228,7 +228,7 @@ workflows:
             alias: test-python-pre
             parameters:
               base-image: ["mr0grog/circle-python-pre"]
-              python-version: ["3.15.0a7", "3.15.0a7t"]
+              python-version: ["3.15.0", "3.15.0t"]
       - lint:
           filters:
             tags:

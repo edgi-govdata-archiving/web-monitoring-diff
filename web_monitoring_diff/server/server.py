@@ -91,39 +91,18 @@ XML_PROLOG_PATTERN = re.compile(
     b'<\\?xml\\s[^>]*encoding=[\'"]([^\'"]+)[\'"].*\\?>',
     re.IGNORECASE)
 
-MAX_BODY_SIZE = None
+MAX_BODY_SIZE = 10 * 1024 * 1024
 try:
-    MAX_BODY_SIZE = int(os.environ.get('DIFFER_MAX_BODY_SIZE', 0))
-    if MAX_BODY_SIZE < 0:
-        print('DIFFER_MAX_BODY_SIZE must be >= 0', file=sys.stderr)
+    MAX_BODY_SIZE = int(os.environ.get('DIFFER_MAX_BODY_SIZE', MAX_BODY_SIZE))
+    if MAX_BODY_SIZE <= 0:
+        print('DIFFER_MAX_BODY_SIZE must be > 0', file=sys.stderr)
         sys.exit(1)
 except ValueError:
     print('DIFFER_MAX_BODY_SIZE must be an integer', file=sys.stderr)
     sys.exit(1)
 
 
-class LimitedCurlAsyncHTTPClient(CurlAsyncHTTPClient):
-    """
-    A customized version of Tornado's CurlAsyncHTTPClient that adds support for
-    maximum response body sizes. The API is the same as that for Tornado's
-    SimpleAsyncHTTPClient: set ``max_body_size`` to an integer representing the
-    maximum number of bytes in a response body.
-    """
-    def initialize(self, max_clients=10, defaults=None, max_body_size=None):
-        self.max_body_size = max_body_size
-        defaults = defaults or {}
-        defaults['prepare_curl_callback'] = self.prepare_curl
-        super().initialize(max_clients=max_clients, defaults=defaults)
-
-    def prepare_curl(self, curl):
-        if self.max_body_size:
-            # NOTE: cURL's docs suggest this doesn't work if the server doesn't
-            # send a Content-Length header, but it seems to do just fine in
-            # tests. ¯\_(ツ)_/¯
-            curl.setopt(pycurl.MAXFILESIZE, self.max_body_size)
-
-
-HTTP_CLIENT = LimitedCurlAsyncHTTPClient
+HTTP_CLIENT = CurlAsyncHTTPClient
 if os.getenv('USE_SIMPLE_HTTP_CLIENT'):
     HTTP_CLIENT = None
 tornado.httpclient.AsyncHTTPClient.configure(HTTP_CLIENT,
@@ -414,8 +393,8 @@ class DiffHandler(BaseHandler):
                                       str(error),
                                       'Invalid URL for cURL',
                                       extra={'url': url})
-                # TODO: raise a nicer error from LimitedCurlAsyncHTTPClient
-                elif error.errno == pycurl.E_FILESIZE_EXCEEDED:
+                elif (error.errno == pycurl.E_FILESIZE_EXCEEDED
+                      or error.errno == pycurl.E_WRITE_ERROR):
                     raise PublicError(502,
                                       f'Upstream response too big for "{url}"'
                                       f'(max: {client.max_body_size} bytes)',
