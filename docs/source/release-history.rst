@@ -10,6 +10,7 @@ In Development
 - ``DIFFER_MAX_BODY_SIZE`` now *actually* defaults to 10 MB, as documented. If set, it also now requires a value greater than 0. It previously defaulted to no limit at all, and a value of ``0`` also previously indicated no limit. (:issue:`256`)
 - Support Tonado v3.5.9 and newer. We had some subtle bugs caused by security fixes in newer Tornado releases. (:issue:`256`)
 - Officially support Python 3.15. (:issue:`257`)
+- Fix some deperecation warnings when used with recent versions of BeautifulSoup. (:issue:`264`)
 
 
 Version 0.2.0 (2026-03-16)
