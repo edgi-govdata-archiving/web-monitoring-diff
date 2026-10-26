@@ -19,7 +19,7 @@ classifiers = [
 ]
 
 dependencies = [
-    "beautifulsoup4 >=4.9.0,<5",
+    "beautifulsoup4 >=4.13.0,<5",
     "fast_diff_match_patch >=2.0.1,<3",
     "html5-parser >=0.4.0,<0.6",
     "lxml >=4.5.0,<7",
@@ -82,3 +82,20 @@ build.hooks.vcs.version-file = "web_monitoring_diff/_version.py"
 # need this for git depenencies
 [tool.hatch.metadata]
 allow-direct-references = true
+
+[tool.pytest]
+filterwarnings = [
+    "default",
+    # We want to be alerted when upgrades introduce deprecations to features
+    # we use. When testing our own deprecation warnings, those tests should be
+    # marked with `@pytest.mark.filterwarnings` to avoid hitting this rule.
+    "error::DeprecationWarning:",
+    # Don't turn deprecation warnings about invalid escapes into errors. Doing
+    # so affects how .pyc compilation works, and interacts problematically with
+    # dependency caching in CircleCI, turning these warnings into errors only
+    # on runs with cached dependencies. Keeping these using the default action
+    # avoids the problem.
+    "default:invalid escape sequence:DeprecationWarning",
+    # Add any specific deprecations that shouldn't be considered errors like:
+    # "default:Regex for warning message:DeprecationWarning",
+]
