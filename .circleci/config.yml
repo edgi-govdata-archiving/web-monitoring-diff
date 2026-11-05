@@ -1,9 +1,15 @@
 version: 2.1
 
 parameters:
+  # Version of Python to use for jobs that don't have a specific setting.
+  # Basically, for everything but tests.
   primary-python-version:
     type: string
     default: "3.14"
+  # Publish Docker "edge" tag from this branch.
+  edge-branch:
+    type: string
+    default: "main"
 
 commands:
   setup_pip:
@@ -153,40 +159,38 @@ jobs:
       - run:
           name: Publish Commit-SHA-Tagged Image
           command: docker push envirodgi/web-monitoring-diff:${CIRCLE_SHA1}
-      - run:
-          name: Publish Version-Tagged Image
-          command: |
-            # Sanity-check that we are dealing with an actual release tag.
-            if [ -z "${CIRCLE_TAG}" ]; then
-              echo 'There is no git tag to use!'
-            else
-              # Re-tag the Docker image with the current version number, which
-              # is based on the current git tag ($CIRCLE_TAG).
-              docker image tag \
-                envirodgi/web-monitoring-diff:${CIRCLE_SHA1} \
-                envirodgi/web-monitoring-diff:${CIRCLE_TAG:1}
-              docker push envirodgi/web-monitoring-diff:${CIRCLE_TAG:1}
-            fi
-      - run:
-          name: Publish :latest Tag If Final Release
-          command: |
-            # Skip tags with additional info after "v0.0.0", e.g. "v1.0.0a1"
-            # NOTE: the version of grep on Circle needs -P (perl-style regex)
-            # instead of -E (extended regex) to support `\d`.
-            FINAL_VERSION="$(
-              echo "${CIRCLE_TAG}" |
-              grep -P '^v\d+(\.\d+)+$' ||
-              true
-            )"
-            if [ -z "${FINAL_VERSION}" ]; then
-              echo 'The current tag does not represent a final release!'
-              echo 'Not publishing a ":latest" tag.'
-            else
-              docker image tag \
-                envirodgi/web-monitoring-diff:${CIRCLE_SHA1} \
-                envirodgi/web-monitoring-diff:latest
-              docker push envirodgi/web-monitoring-diff:latest
-            fi
+      - when:
+          condition: << pipeline.git.branch == pipeline.parameters.edge-branch >>
+          steps:
+            - run:
+                name: Publish :edge Tag
+                command: |
+                  docker image tag \
+                    "envirodgi/web-monitoring-diff:${CIRCLE_SHA1}" \
+                    "envirodgi/web-monitoring-diff:edge"
+                  docker push envirodgi/web-monitoring-diff:edge
+      - when:
+          condition: << pipeline.git.tag starts-with "v" >>
+          steps:
+            - run:
+                name: Publish Version-Tagged Image
+                command: |
+                  DOCKER_TAG="${CIRCLE_TAG:1}"
+                  docker image tag \
+                    "envirodgi/web-monitoring-diff:${CIRCLE_SHA1}" \
+                    "envirodgi/web-monitoring-diff:${DOCKER_TAG}"
+                  docker push "envirodgi/web-monitoring-diff:${DOCKER_TAG}"
+      - when:
+          # Skip tags with additional info after "v0.0.0", e.g. "v1.0.0a1"
+          condition: << pipeline.git.tag matches /^v\d+(\.\d+)+$/ >>
+          steps:
+            - run:
+                name: Publish :latest Tag For Final Releases
+                command: |
+                  docker image tag \
+                    envirodgi/web-monitoring-diff:${CIRCLE_SHA1} \
+                    envirodgi/web-monitoring-diff:latest
+                  docker push envirodgi/web-monitoring-diff:latest
 
   # TODO: Publish to PyPI from CircleCI for version tags, similar to Docker.
   # publish_pypi:
@@ -229,7 +233,7 @@ workflows:
           filters:
             tags:
               only: /^v.*/
-      # Publishing only happens for tags starting with "v", and no branches.
+      # Publish public images from relevant branches and version tags.
       - publish_docker:
           requires:
             - test
@@ -237,6 +241,7 @@ workflows:
             - build_docker
           filters:
             branches:
-              ignore: /.*/
+              only:
+                - main
             tags:
               only: /^v.*/
