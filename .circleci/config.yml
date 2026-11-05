@@ -9,7 +9,8 @@ parameters:
   # Name of Docker image to publish.
   docker-image:
     type: string
-    default: "envirodgi/web-monitoring-diff"
+    # default: "envirodgi/web-monitoring-diff"
+    default: "envirodgi/test-publish"
   # Publish Docker "edge" tag from this branch.
   edge-branch:
     type: string
@@ -251,5 +252,6 @@ workflows:
             branches:
               only:
                 - main
+                - edge-tags-are-useful-for-testing
             tags:
               only: /^v.*/
