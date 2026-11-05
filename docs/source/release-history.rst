@@ -11,6 +11,7 @@ In Development
 - Support Tonado v3.5.9 and newer. We had some subtle bugs caused by security fixes in newer Tornado releases. (:issue:`256`)
 - Officially support Python 3.15. (:issue:`257`)
 - Fix some deperecation warnings when used with recent versions of BeautifulSoup. (:issue:`264`)
+- Publish an `edge` tag on Docker Hub that reflects the latest commit on the `main` branch. We previously only published Docker images for pre-releases and releases, but sometimes people need to test or deploy changes or bugfixes ASAP, and this makes that possible. (:issue:`265`)
 
 
 Version 0.2.0 (2026-03-16)
