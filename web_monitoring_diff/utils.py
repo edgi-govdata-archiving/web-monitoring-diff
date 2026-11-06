@@ -4,7 +4,7 @@ import html5_parser
 import logging
 import os
 import signal
-
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -131,3 +131,19 @@ class Signal:
     def __exit__(self, type, value, traceback):
         for signal_type in self.signals:
             signal.signal(signal_type, self.old_handlers[signal_type])
+
+
+
+def _normalize_whitespace(text):
+    """
+    Normalize all whitespace variants to a single space for diffing purposes.
+    Covers:
+      - Case 1: Multiple spaces / newlines (collapsed in HTML anyway)
+      - Case 2: Non-breaking spaces (\\u00a0)
+      - Case 3: Fancy spaces (em space, hair space, etc.)
+    """
+
+    _WHITESPACE_NORMALIZE_RE = re.compile(r'[\s\u00a0\u1680\u2000-\u200a\u202f\u205f\u3000]+')
+    return _WHITESPACE_NORMALIZE_RE.sub(' ', text).strip()
+
+
