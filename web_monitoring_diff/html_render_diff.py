@@ -295,7 +295,7 @@ class UrlRules:
 
 def html_diff_render(a_text, b_text, a_headers=None, b_headers=None,
                      include='combined', content_type_options='normal',
-                     url_rules='jsessionid'):
+                     url_rules='jsessionid', case_sensitive=False):
     """
     HTML Diff for rendering. This is focused on visually highlighting portions
     of a page’s text that have been changed. It does not do much to show how
@@ -368,6 +368,10 @@ def html_diff_render(a_text, b_text, a_headers=None, b_headers=None,
         e.g. `jsessionid,wayback`. Use None or an empty string for exact
         comparisons. (Default: `jsessionid`)
 
+    case_sensitive : bool
+        Whether visible text comparisons should treat letter-case differences
+        as changes. Defaults to `False`.
+
     Examples
     --------
     >>> text1 = '<!DOCTYPE html><html><head></head><body><p>Paragraph</p></body></html>'
@@ -399,7 +403,12 @@ def html_diff_render(a_text, b_text, a_headers=None, b_headers=None,
     soup_old = _cleanup_document_structure(soup_old)
     soup_new = _cleanup_document_structure(soup_new)
 
-    results, diff_bodies = diff_elements(soup_old.body, soup_new.body, comparator, include)
+    results, diff_bodies = diff_elements(
+        soup_old.body,
+        soup_new.body,
+        comparator,
+        include,
+        case_sensitive=case_sensitive)
 
     for diff_type, diff_body in diff_bodies.items():
         soup = None
@@ -411,7 +420,10 @@ def html_diff_render(a_text, b_text, a_headers=None, b_headers=None,
             soup = copy.copy(soup_new)
             title_meta = soup.new_tag(
                 'meta',
-                content=_diff_title(soup_old, soup_new))
+                content=_diff_title(
+                    soup_old,
+                    soup_new,
+                    case_sensitive=case_sensitive))
             title_meta.attrs['name'] = 'wm-diff-title'
             soup.head.append(title_meta)
 
@@ -482,16 +494,21 @@ def _html_for_dmp_operation(operation):
         return html_value
 
 
-def _diff_title(old, new):
+def _diff_title(old, new, case_sensitive=False):
     """
     Create an HTML diff (i.e. a string with `<ins>` and `<del>` tags) of the
     title of two Beautiful Soup documents.
     """
-    diff = compute_dmp_diff(get_title(old), get_title(new))
+    old_title = get_title(old)
+    new_title = get_title(new)
+    if not case_sensitive and old_title.casefold() == new_title.casefold():
+        diff = [(0, new_title)]
+    else:
+        diff = compute_dmp_diff(old_title, new_title)
     return ''.join(map(_html_for_dmp_operation, diff))
 
 
-def diff_elements(old, new, comparator, include='all'):
+def diff_elements(old, new, comparator, include='all', case_sensitive=False):
     if not old:
         old = BeautifulSoup().new_tag('div')
     if not new:
@@ -518,7 +535,8 @@ def diff_elements(old, new, comparator, include='all'):
     metadata, raw_diffs = _htmldiff(_diffable_fragment(old),
                                     _diffable_fragment(new),
                                     comparator,
-                                    include)
+                                    include,
+                                    case_sensitive=case_sensitive)
 
     for diff_type, diff in raw_diffs.items():
         element = diff_type == 'deletions' and old or new
@@ -548,12 +566,12 @@ def _is_ins_or_del(tag):
 # FIXME: this should take two BeautifulSoup elements to diff (since we've
 # already parsed and generated those), not two HTML fragment strings that have
 # to get parsed again.
-def _htmldiff(old, new, comparator, include='all'):
+def _htmldiff(old, new, comparator, include='all', case_sensitive=False):
     """
     A slightly customized version of htmldiff that uses different tokens.
     """
-    old_tokens = tokenize(old, comparator)
-    new_tokens = tokenize(new, comparator)
+    old_tokens = tokenize(old, comparator, case_sensitive=case_sensitive)
+    new_tokens = tokenize(new, comparator, case_sensitive=case_sensitive)
     # old_tokens = [_customize_token(token) for token in old_tokens]
     # new_tokens = [_customize_token(token) for token in new_tokens]
     old_tokens = _limit_spacers(_customize_tokens(old_tokens), MAX_SPACERS)
@@ -651,7 +669,8 @@ class DiffToken(str):
     # displayed diff if no change has occurred:
     hide_when_equal = False
 
-    def __new__(cls, text, pre_tags=None, post_tags=None, trailing_whitespace=""):
+    def __new__(cls, text, pre_tags=None, post_tags=None, trailing_whitespace="",
+                comparison_text=None):
         obj = str.__new__(cls, text)
 
         if pre_tags is not None:
@@ -665,12 +684,25 @@ class DiffToken(str):
             obj.post_tags = []
 
         obj.trailing_whitespace = trailing_whitespace
+        obj.comparison_text = text if comparison_text is None else comparison_text
 
         return obj
 
     def __repr__(self):
         return 'DiffToken(%s, %r, %r, %r)' % (str.__repr__(self), self.pre_tags,
                                               self.post_tags, self.trailing_whitespace)
+
+    @staticmethod
+    def _comparison_value(value):
+        if isinstance(value, DiffToken):
+            return value.comparison_text
+        return value
+
+    def __eq__(self, other):
+        return self.comparison_text == self._comparison_value(other)
+
+    def __hash__(self):
+        return hash(self.comparison_text)
 
     def html(self):
         return str(self)
@@ -745,7 +777,7 @@ class UndiffableContentToken(DiffToken):
 # FIXME: this should be adapted to work off a BeautifulSoup element instead of
 # an etree/lxml element, since we already have that and could avoid re-parsing
 # the whole document a second time.
-def tokenize(html, comparator, include_hrefs=True):
+def tokenize(html, comparator, include_hrefs=True, case_sensitive=False):
     """
     Parse the given HTML and returns token objects (words with attached tags).
 
@@ -767,7 +799,7 @@ def tokenize(html, comparator, include_hrefs=True):
     # Then we split the document into text chunks for each tag, word, and end tag:
     chunks = flatten_el(body_el, skip_tag=True, include_hrefs=include_hrefs)
     # Finally re-joining them into token objects:
-    return fixup_chunks(chunks, comparator)
+    return fixup_chunks(chunks, comparator, case_sensitive=case_sensitive)
 
 def parse_html(html):
     """
@@ -793,7 +825,7 @@ class TokenType(Enum):
     img = 5
 
 
-def fixup_chunks(chunks, comparator):
+def fixup_chunks(chunks, comparator, case_sensitive=False):
     """
     This function takes a list of chunks and produces a list of tokens.
     """
@@ -824,7 +856,11 @@ def fixup_chunks(chunks, comparator):
 
         elif current_token == TokenType.word:
             chunk, trailing_whitespace = split_trailing_whitespace(chunk[1])
-            cur_word = DiffToken(chunk, pre_tags=tag_accum, trailing_whitespace=trailing_whitespace)
+            comparison_text = chunk if case_sensitive else chunk.casefold()
+            cur_word = DiffToken(chunk,
+                                 pre_tags=tag_accum,
+                                 trailing_whitespace=trailing_whitespace,
+                                 comparison_text=comparison_text)
             tag_accum = []
             result.append(cur_word)
 
