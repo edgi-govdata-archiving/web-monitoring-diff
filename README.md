@@ -3,6 +3,8 @@
 
 # web-monitoring-diff
 
+> **Note:** The Docker image overview on Docker Hub is maintained separately in [`README-docker.md`](./README-docker.md) and is automatically published by CI.
+
 *Web-Monitoring-Diff* is a suite of functions that *diff* (find the differences between) types of content commonly found on the web, such as HTML, text files, etc. in a variety of ways. It also includes an optional web server that generates diffs as an HTTP service.
 
 This package was originally built as a component of EDGI’s [Web Monitoring Project](https://github.com/edgi-govdata-archiving/web-monitoring), but is also used by other organizations and tools.
