@@ -20,6 +20,7 @@ import tornado.ioloop
 import tornado.web
 import traceback
 import web_monitoring_diff
+from .errors import PublicError
 from .mock_http import MockResponse
 from .diff_routes import DIFF_ROUTES
 from ..exceptions import UndiffableContentError, UndecodableContentError
