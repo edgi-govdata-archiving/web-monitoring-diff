@@ -20,6 +20,8 @@ In Development
 
   (:issue:`265`)
 
+- Switched linting from Flake8 to Ruff. (:issue:`249`)
+
 
 Version 0.2.0 (2026-03-16)
 --------------------------
