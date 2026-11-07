@@ -299,7 +299,7 @@ def html_diff_render(a_text, b_text, a_headers=None, b_headers=None,
     """
     HTML Diff for rendering. This is focused on visually highlighting portions
     of a page’s text that have been changed. It does not do much to show how
-    node types or attributes have been modified (save for link or image URLs)\.
+    node types or attributes have been modified (save for link or image URLs).
 
     The overall page returned primarily represents the structure of the "new"
     or "B" version. However, it contains some useful metadata in the `<head>`:
