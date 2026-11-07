@@ -29,7 +29,7 @@ def _get_text(html):
     soup = html5_parser.parse(html, treebuilder='soup', return_root=False)
     [element.extract() for element in
      soup.find_all(string=lambda text: isinstance(text, Comment))]
-    return soup.find_all(text=True)
+    return soup.find_all(string=True)
 
 
 INVISIBLE_TAGS = set(['style', 'script', '[document]', 'head', 'title'])

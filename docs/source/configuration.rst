@@ -4,7 +4,11 @@ Configuration
 
 The diff server and some diffing algorithms can be configured via environment variables. All variables are optional; defaults are noted below.
 
-A template listing all variables is available in `.env.example <https://github.com/edgi-govdata-archiving/web-monitoring-diff/blob/main/.env.example>`_ at the root of the repository.
+A template listing all variables is available in `.env.example`_ at the root of the repository.
+
+When running the diff server from the command line, it will load these variables from a file named ``.env`` in the project directory, which can be helpful for configuration in your local development environment. The file should be formatted as a list of bash-style variable declarations, like the `.env.example`_ file.
+
+.. _.env.example: https://github.com/edgi-govdata-archiving/web-monitoring-diff/blob/main/.env.example
 
 
 Diff Settings

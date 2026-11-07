@@ -77,14 +77,10 @@ This package was originally built as a component of EDGI’s [Web Monitoring Pro
 
     If using a different package manager, check the [`requirements-experimental.txt` file](./requirements-experimental.txt) and install each of the listed packages.
 
-4. (Optional) If you are using the diff *server* and want high-performance character encoding detection, install [`cchardet`](https://pypi.org/project/cchardet). Note that it only supports Python 3.10 at the time of this writing. An alpha release supports up to Python 3.12. Its current maintenance status is unclear.
+4. (Optional) If you are using the diff *server* and want high-performance character encoding detection, install [`cchardet`](https://pypi.org/project/cchardet).
 
     ```sh
-    # In Python 3.10:
     pip install cchardet
-
-    # Or, for Python 3.11 or 3.12:
-    pip install cchardet==2.2.0a2
     ```
 
 
@@ -233,16 +229,22 @@ First, make sure you have an appropriate Python version and the necessary system
     import web_monitoring_diff
     ```
 
-5. Edit some code!
+5. Install the pre-commit hooks:
 
-6. Before pushing your commits and making a PR, run the tests and lint your code:
+    ```sh
+    $ pre-commit install
+    ```
+
+6. Edit some code!
+
+7. Before pushing your commits and making a PR, run the tests and lint your code:
 
     ```sh
     # Run tests:
     $ pytest .
 
     # Lint your code to make sure it doesn't have any style issues:
-    $ pyflakes .
+    $ ruff check .
     ```
 
 
@@ -264,7 +266,7 @@ Thanks to the following people for all their contributions! This project depends
 | [💻](# "Code") [⚠️](# "Tests") | [Janak Raj Chadha](https://github.com/janakrajchadha) |
 | [💻](# "Code") | [Derzan Chiang](https://github.com/MiTo0o) |
 | [💻](# "Code") | [Autumn Coleman](https://github.com/AutumnColeman) |
-| [📖](# "Documentation") | [Beckett Frey](https://github.com/BeckettFrey) |
+| [📖](# "Documentation") [⚠️](# "Tests") | [Beckett Frey](https://github.com/BeckettFrey) |
 | [💻](# "Code") | [Luming Hao](https://github.com/lh00000000) |
 | [🤔](# "Ideas and Planning") | [Mike Hucka](https://github.com/mhucka) |
 | [💻](# "Code") | [Stuart Lynn](https://github.com/stuartlynn) |

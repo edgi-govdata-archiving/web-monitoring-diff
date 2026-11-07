@@ -6,7 +6,7 @@
 # We separate them out so that the final `release` image can layer on top of
 # this one without needing compiler-related packages.
 ##
-FROM python:3.10.20-slim AS base
+FROM python:3.15.1-slim-trixie AS base
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libxml2 \
@@ -64,7 +64,6 @@ RUN pip install ".[server]" --no-binary lxml
 ##
 
 FROM base AS release
-
 
 LABEL org.opencontainers.image.title="web-monitoring-diff" \
       org.opencontainers.image.description="Server for detecting changes in web content" \

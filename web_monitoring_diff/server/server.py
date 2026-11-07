@@ -12,6 +12,7 @@ import re
 import sentry_sdk
 import signal
 import sys
+from dotenv import load_dotenv
 from tornado.curl_httpclient import CurlAsyncHTTPClient, CurlError
 import tornado.simple_httpclient
 import tornado.httpclient
@@ -20,7 +21,12 @@ import tornado.web
 import traceback
 import web_monitoring_diff
 from .mock_http import MockResponse
+<<<<<<< HEAD
 from .diff_routes import DIFF_ROUTES
+=======
+from .errors import PublicError
+from .. import basic_diffs, html_render_diff, html_links_diff
+>>>>>>> origin/main
 from ..exceptions import UndiffableContentError, UndecodableContentError
 from ..utils import shutdown_executor_in_loop, Signal
 
@@ -63,39 +69,18 @@ XML_PROLOG_PATTERN = re.compile(
     b'<\\?xml\\s[^>]*encoding=[\'"]([^\'"]+)[\'"].*\\?>',
     re.IGNORECASE)
 
-MAX_BODY_SIZE = None
+MAX_BODY_SIZE = 10 * 1024 * 1024
 try:
-    MAX_BODY_SIZE = int(os.environ.get('DIFFER_MAX_BODY_SIZE', 0))
-    if MAX_BODY_SIZE < 0:
-        print('DIFFER_MAX_BODY_SIZE must be >= 0', file=sys.stderr)
+    MAX_BODY_SIZE = int(os.environ.get('DIFFER_MAX_BODY_SIZE', MAX_BODY_SIZE))
+    if MAX_BODY_SIZE <= 0:
+        print('DIFFER_MAX_BODY_SIZE must be > 0', file=sys.stderr)
         sys.exit(1)
 except ValueError:
     print('DIFFER_MAX_BODY_SIZE must be an integer', file=sys.stderr)
     sys.exit(1)
 
 
-class LimitedCurlAsyncHTTPClient(CurlAsyncHTTPClient):
-    """
-    A customized version of Tornado's CurlAsyncHTTPClient that adds support for
-    maximum response body sizes. The API is the same as that for Tornado's
-    SimpleAsyncHTTPClient: set ``max_body_size`` to an integer representing the
-    maximum number of bytes in a response body.
-    """
-    def initialize(self, max_clients=10, defaults=None, max_body_size=None):
-        self.max_body_size = max_body_size
-        defaults = defaults or {}
-        defaults['prepare_curl_callback'] = self.prepare_curl
-        super().initialize(max_clients=max_clients, defaults=defaults)
-
-    def prepare_curl(self, curl):
-        if self.max_body_size:
-            # NOTE: cURL's docs suggest this doesn't work if the server doesn't
-            # send a Content-Length header, but it seems to do just fine in
-            # tests. ¯\_(ツ)_/¯
-            curl.setopt(pycurl.MAXFILESIZE, self.max_body_size)
-
-
-HTTP_CLIENT = LimitedCurlAsyncHTTPClient
+HTTP_CLIENT = CurlAsyncHTTPClient
 if os.getenv('USE_SIMPLE_HTTP_CLIENT'):
     HTTP_CLIENT = None
 tornado.httpclient.AsyncHTTPClient.configure(HTTP_CLIENT,
@@ -104,42 +89,6 @@ tornado.httpclient.AsyncHTTPClient.configure(HTTP_CLIENT,
 
 def get_http_client():
     return tornado.httpclient.AsyncHTTPClient()
-
-
-class PublicError(tornado.web.HTTPError):
-    """
-    Customized version of Tornado's HTTP error designed for reporting publicly
-    visible error messages. Please always raise this instead of calling
-    `send_error()` directly, since it lets you attach a user-visible
-    explanation of what went wrong.
-
-    Parameters
-    ----------
-    status_code : int, default: 500
-        Status code for the response.
-    public_message : str, optional
-        Textual description of the error. This will be publicly visible in
-        production mode, unlike `log_message`.
-    log_message : str, optional
-        Error message written to logs and to error tracking service. Will be
-        included in the HTTP response only in debug mode. Same as the
-        `log_message` parameter to `tornado.web.HTTPError`, but with no
-        interpolation.
-    extra : dict, optional
-        Dict of additional keys and values to include in the error response.
-    """
-    def __init__(self, status_code=500, public_message=None, log_message=None,
-                 extra=None, **kwargs):
-        self.extra = extra or {}
-
-        if public_message is not None:
-            if 'error' not in self.extra:
-                self.extra['error'] = public_message
-
-            if log_message is None:
-                log_message = public_message
-
-        super().__init__(status_code, log_message, **kwargs)
 
 
 DEBUG_MODE = os.environ.get('DIFFING_SERVER_DEBUG', 'False').strip().lower() == 'true'
@@ -386,8 +335,8 @@ class DiffHandler(BaseHandler):
                                       str(error),
                                       'Invalid URL for cURL',
                                       extra={'url': url})
-                # TODO: raise a nicer error from LimitedCurlAsyncHTTPClient
-                elif error.errno == pycurl.E_FILESIZE_EXCEEDED:
+                elif (error.errno == pycurl.E_FILESIZE_EXCEEDED
+                      or error.errno == pycurl.E_WRITE_ERROR):
                     raise PublicError(502,
                                       f'Upstream response too big for "{url}"'
                                       f'(max: {client.max_body_size} bytes)',
@@ -760,6 +709,9 @@ def cli():
     if arguments.version:
         print(web_monitoring_diff.__version__)
         return
+
+    # Update os.environ with values from `.env` file, if present.
+    load_dotenv()
 
     start_app(arguments.port)
 

@@ -19,25 +19,27 @@ classifiers = [
 ]
 
 dependencies = [
-    "beautifulsoup4 >=4.9.0,<5",
+    "beautifulsoup4 >=4.13.0,<5",
     "fast_diff_match_patch >=2.0.1,<3",
-    "html5-parser >=0.4.0,<0.5",
+    "html5-parser >=0.4.0,<0.6",
     "lxml >=4.5.0,<7",
 ]
 
 [project.optional-dependencies]
 # Dependencies for the HTTP server.
 server = [
+    "python-dotenv >= 1.2.2",
     "chardet >=5.0.0,<6",
     "pycurl >=7.43,<8",
     "sentry-sdk[tornado] >=2.0.0,<3.0",
-    "tornado >=6.0.0,<7",
+    "tornado >=6.5.9,<7",
 ]
 # Development-related dependencies (for building, running tests, etc.)
 dev = [
     "coverage ~=7.13",
-    "flake8 ~=7.3.0",
-    "pytest ~=9.0.2",
+    "pre-commit ~=4.6",
+    "pytest ~=9.1.1",
+    "ruff ~=0.17.4",
 ]
 # Tools for building documentation. Some of our docs tools conflict with dev
 # tools on Python < 10, so docs tools are listed here in order to make it
@@ -81,3 +83,28 @@ build.hooks.vcs.version-file = "web_monitoring_diff/_version.py"
 # need this for git depenencies
 [tool.hatch.metadata]
 allow-direct-references = true
+
+[tool.pytest]
+filterwarnings = [
+    "default",
+    # We want to be alerted when upgrades introduce deprecations to features
+    # we use. When testing our own deprecation warnings, those tests should be
+    # marked with `@pytest.mark.filterwarnings` to avoid hitting this rule.
+    "error::DeprecationWarning:",
+    # Don't turn deprecation warnings about invalid escapes into errors. Doing
+    # so affects how .pyc compilation works, and interacts problematically with
+    # dependency caching in CircleCI, turning these warnings into errors only
+    # on runs with cached dependencies. Keeping these using the default action
+    # avoids the problem.
+    "default:invalid escape sequence:DeprecationWarning",
+    # Add any specific deprecations that shouldn't be considered errors like:
+    # "default:Regex for warning message:DeprecationWarning",
+]
+
+[tool.ruff]
+line-length = 115
+
+[tool.ruff.lint]
+# TODO: we probably want to turn on "E", and may want to switch to
+# `extend-select` so we get the default rules. But those currently flag a lot!
+select = ["F", "W"]
