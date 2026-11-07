@@ -13,7 +13,7 @@ import sentry_sdk
 import signal
 import sys
 from dotenv import load_dotenv
-from tornado.curl_httpclient import CurlError
+from tornado.curl_httpclient import CurlAsyncHTTPClient, CurlError
 import tornado.simple_httpclient
 import tornado.httpclient
 import tornado.ioloop
@@ -22,7 +22,6 @@ import traceback
 import web_monitoring_diff
 from .mock_http import MockResponse
 from .errors import PublicError
-from .http_client import LimitedCurlAsyncHTTPClient
 from .. import basic_diffs, html_render_diff, html_links_diff
 from ..exceptions import UndiffableContentError, UndecodableContentError
 from ..utils import shutdown_executor_in_loop, Signal
