@@ -11,6 +11,14 @@ In Development
 - Support Tonado v3.5.9 and newer. We had some subtle bugs caused by security fixes in newer Tornado releases. (:issue:`256`)
 - Officially support Python 3.15. (:issue:`257`)
 - Fix some deperecation warnings when used with recent versions of BeautifulSoup. (:issue:`264`)
+- We now publish an ``edge`` tag on `Docker Hub <https://hub.docker.com/r/envirodgi/web-monitoring-diff>`_ that reflects the latest commit on the ``main`` branch. If you use the Docker images for this project, the following tags are now available:
+
+  - ``:v1.2.3`` versioned tags for releases and pre-releases.
+  - ``:latest`` for the latest versioned release (not pre-releases).
+  - ``:edge`` for the latest commit on the ``main`` branch. We try our best to keep this in working shape, but it is not guaranteed to be stable.
+  - ``:<commit-sha>`` for versioned releases, pre-releases, pushes to ``main``, and occasional other arbitrary builds.
+
+  (:issue:`265`)
 
 
 Version 0.2.0 (2026-03-16)
