@@ -21,12 +21,7 @@ import tornado.web
 import traceback
 import web_monitoring_diff
 from .mock_http import MockResponse
-<<<<<<< HEAD
 from .diff_routes import DIFF_ROUTES
-=======
-from .errors import PublicError
-from .. import basic_diffs, html_render_diff, html_links_diff
->>>>>>> origin/main
 from ..exceptions import UndiffableContentError, UndecodableContentError
 from ..utils import shutdown_executor_in_loop, Signal
 
