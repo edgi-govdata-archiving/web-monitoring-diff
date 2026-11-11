@@ -92,6 +92,7 @@ block_level_tags = set([
     'th',
     'noscript',
     'canvas',
+    'label',
 
     # These are "transparent", which means they *can* be a block
     'a',
@@ -1274,7 +1275,7 @@ def merge_changes(change_chunks, doc, tag_type='ins'):
             name = chunk.split('>', 1)[0].split(None, 1)[0].strip('<>/')
             # Also treat `a` tags as block in this context, because they *can*
             # contain block elements, like `h1`, etc.
-            is_block = name in block_level_tags or name == 'a'
+            is_block = name in block_level_tags
 
             if chunk[1] == '/':
                 if depth > 0:
@@ -1534,7 +1535,7 @@ def merge_change_groups(change_chunks, doc, tag_type=None):
             name = chunk.split('>', 1)[0].split(None, 1)[0].strip('<>/')
             # Also treat `a` tags as block in this context, because they *can*
             # contain block elements, like `h1`, etc.
-            is_block = name in block_level_tags or name == 'a'
+            is_block = name in block_level_tags
 
             if chunk[1] == '/':
                 if depth > 0:
