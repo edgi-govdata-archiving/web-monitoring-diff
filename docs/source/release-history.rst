@@ -31,6 +31,7 @@ Fixes
 
 - Support Tornado v6.5.9 and newer. We had some subtle bugs caused by security fixes in newer Tornado releases. (:issue:`256`)
 - Fix some deperecation warnings when used with recent versions of BeautifulSoup. (:issue:`264`)
+- In ``html_diff_render``, changes in ``<label>`` elements now render better. (:issue:`270`)
 
 
 Docs & Internals
@@ -43,7 +44,7 @@ Docs & Internals
 New Contributors
 ^^^^^^^^^^^^^^^^
 
-TBD
+- `@Rajdeep0511 <https://github.com/Rajdeep0511>`_
 
 
 Version 0.2.0 (2026-03-16)
