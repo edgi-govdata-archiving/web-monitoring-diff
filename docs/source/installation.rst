@@ -71,6 +71,20 @@ Installation
 
     pip install cchardet
 
+  **Chardet licensing concerns:** If ``cchardet`` is not installed, the server will fall back to using ``chardet``. Version 7 of Chardet caused some controversy by changing its license without consulting earlier contributors. It was also a complete re-write using an LLM. Web-monitoring-diff attempts to be compatible with whatever version of Chardet you choose to use, but that also means most tools will automatically install the newest version.
+
+    If you’d like to install the server with a version of Chardet from before the licensing controversy, you can run:
+
+    .. code-block:: bash
+
+      pip install 'web-monitoring-diff[server]' 'chardet <7' --no-binary lxml
+
+    Or if you’ve already installed the server and want to adjust Chardet later:
+
+    .. code-block:: bash
+
+      pip install 'chardet <7'
+
 
 .. _pyenv: https://github.com/pyenv/pyenv
 .. _conda: https://docs.conda.io/en/latest/
