@@ -413,3 +413,61 @@ def test_html_diff_compound_comparisons_works():
         include='all', url_rules='jsessionid,wayback,wayback_uk')
 
     assert results['change_count'] == 0
+
+
+def test_html_diff_render_changes_break_inline_elements():
+    """
+    Changes that intersect with an inline element should break the inline
+    element into multiple elements in order to represent the actual change as
+    a single element when possible.
+    """
+    result = html_diff_render(
+        'Hello same one A B C <em>Alice A B same here</em>.',
+        'Hello same one D E F <em>Sally C D same here</em>.',
+        include='all'
+    )
+
+    deletions = remove_extras(get_body(result['deletions']))
+    insertions = remove_extras(get_body(result['insertions']))
+    combined = remove_extras(get_body(result['combined']))
+
+    assert deletions == 'Hello same one <del class="wm-diff">A B C <em>Alice A B </em></del><em>same here</em>.'
+    assert insertions == 'Hello same one <ins class="wm-diff">D E F <em>Sally C D </em></ins><em>same here</em>.'
+    assert combined == 'Hello same one <del class="wm-diff">A B C <em>Alice A B </em></del><ins class="wm-diff">D E F <em>Sally C D </em></ins><em>same here</em>.'
+
+
+@pytest.mark.parametrize('tag', [
+    'p',
+    # Special case tags that should be treated like blocks:
+    'a',
+    'label'
+])
+def test_html_diff_render_changes_do_not_break_block_elements(tag):
+    """
+    Changes that intersect with a block element break around the block. This
+    keeps block elements intact in their original form, and helps keep complex
+    styling looking correct.
+    """
+    result = html_diff_render(
+        f'Hello same one A B C <{tag}>Alice A B same here</{tag}>.',
+        f'Hello same one D E F <{tag}>Sally C D same here</{tag}>.',
+        include='all'
+    )
+
+    deletions = remove_extras(get_body(result['deletions']))
+    insertions = remove_extras(get_body(result['insertions']))
+    combined = remove_extras(get_body(result['combined']))
+
+    assert deletions == f'Hello same one <del class="wm-diff">A B C </del><{tag}><del class="wm-diff">Alice A B </del>same here</{tag}>.'
+    assert insertions == f'Hello same one <ins class="wm-diff">D E F </ins><{tag}><ins class="wm-diff">Sally C D </ins>same here</{tag}>.'
+    assert combined == (
+        'Hello same one '
+        '<del class="wm-diff">A B C </del>'
+        '<ins class="wm-diff">D E F </ins>'
+        f'<{tag}>'
+        '<del class="wm-diff">Alice A B </del>'
+        '<ins class="wm-diff">Sally C D </ins>'
+        'same here'
+        f'</{tag}>'
+        '.'
+    )
