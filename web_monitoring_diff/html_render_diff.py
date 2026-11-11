@@ -126,6 +126,9 @@ empty_tags = (*void_tags, 'iframe')
 # TODO: fork the tokenization part of lxml.html.diff and use this list!
 undiffable_content_tags = set([
     'datalist',  # Still HTML content, but we can’t really diff inside
+    # TODO: input should have a special token type to give it nicer treatment,
+    # probably by comparing `type`, `value`, and `placeholder` attributes.
+    'input',
     'math',
     'option',
     'rp',
@@ -134,7 +137,7 @@ undiffable_content_tags = set([
     'style',
     'svg',
     'template',
-    'textarea'
+    'textarea',
 ])
 
 # Elements that are not allowed to have our change elements as direct children
