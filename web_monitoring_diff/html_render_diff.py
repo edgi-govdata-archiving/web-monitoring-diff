@@ -92,6 +92,7 @@ block_level_tags = set([
     'th',
     'noscript',
     'canvas',
+    'label',
 
     # These are "transparent", which means they *can* be a block
     'a',
@@ -99,7 +100,6 @@ block_level_tags = set([
     'ins',
     'slot',
 ])
-change_boundary_tags=set(['a','label'])
 
 # "void" in the HTML sense -- these tags do not having a closing tag
 void_tags = (
@@ -155,8 +155,6 @@ no_change_children_tags = set([
     'tr',
     'ul',
 ])
-def breaks_change_element(name):
-    return name in block_level_tags or name in change_boundary_tags
 
 # TODO: do we need special treatment for `<picture>`? Kind of like `<img>`
 
@@ -1277,7 +1275,7 @@ def merge_changes(change_chunks, doc, tag_type='ins'):
             name = chunk.split('>', 1)[0].split(None, 1)[0].strip('<>/')
             # Also treat `a` tags as block in this context, because they *can*
             # contain block elements, like `h1`, etc.
-            is_block = breaks_change_element(name)
+            is_block = name in block_level_tags
 
             if chunk[1] == '/':
                 if depth > 0:
@@ -1537,7 +1535,7 @@ def merge_change_groups(change_chunks, doc, tag_type=None):
             name = chunk.split('>', 1)[0].split(None, 1)[0].strip('<>/')
             # Also treat `a` tags as block in this context, because they *can*
             # contain block elements, like `h1`, etc.
-            is_block = breaks_change_element(name)
+            is_block = name in block_level_tags
 
             if chunk[1] == '/':
                 if depth > 0:
