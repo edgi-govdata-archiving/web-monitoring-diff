@@ -29,7 +29,10 @@ dependencies = [
 # Dependencies for the HTTP server.
 server = [
     "python-dotenv >= 1.2.2",
-    "chardet >=5.0.0,<6",
+    # There were notable performance issues in chardet v6 and controversial
+    # licensing/rewrite issues in v7, so we allow a wide range for it in order
+    # to be compatible with users' choices.
+    "chardet >=5.0.0,<8",
     "pycurl >=7.43,<8",
     "sentry-sdk[tornado] >=2.0.0,<3.0",
     "tornado >=6.5.9,<7",

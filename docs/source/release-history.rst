@@ -32,6 +32,7 @@ Fixes
 - Support Tornado v6.5.9 and newer. We had some subtle bugs caused by security fixes in newer Tornado releases. (:issue:`256`)
 - Fix some deperecation warnings when used with recent versions of BeautifulSoup. (:issue:`264`)
 - In ``html_diff_render``, changes in ``<label>`` elements now render better. (:issue:`270`)
+- Support newer Chardet versions. There’s been a lot of controversy about Chardet v7, and if you’d like to make sure you’re using an earlier version, check the :doc:`install instructions <installation>` for guidance. (:issue:`251`)
 
 
 Docs & Internals
