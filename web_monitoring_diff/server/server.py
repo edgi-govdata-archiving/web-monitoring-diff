@@ -658,7 +658,7 @@ def caller(func, a, b, trace_info=None, **query_params):
     Any other argument names in the signature will take their values from the
     REST query parameters.
     """
-    transaction = sentry_sdk.continue_trace(trace_info or {})
+    transaction = sentry_sdk.continue_trace(trace_info or {}, op='executor.run', name='diff in subprocess')
     with sentry_sdk.start_transaction(transaction):
         # Supplement the query_parameters from the REST call with special items
         # extracted from `a` and `b`.
