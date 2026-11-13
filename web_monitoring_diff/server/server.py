@@ -692,7 +692,8 @@ def caller(func, a, b, trace_info=None, **query_params):
                     raise KeyError("{} requires a parameter {} which was not "
                                    "provided in the query"
                                    "".format(func.__name__, name))
-        return func(**kwargs)
+        with sentry_sdk.start_span(op='diff.call', name=f'diff.call.{func.__name__}'):
+            return func(**kwargs)
 
 
 class IndexHandler(BaseHandler):
