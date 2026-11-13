@@ -631,7 +631,7 @@ def _decode_body(response, name, raise_if_binary=True):
     return text
 
 
-def caller(func, a, b, trace_info, **query_params):
+def caller(func, a, b, trace_info=None, **query_params):
     """
     A translation layer between HTTPResponses and differ functions.
 
