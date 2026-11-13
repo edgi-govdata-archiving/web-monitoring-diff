@@ -27,6 +27,7 @@ import traceback
 import web_monitoring_diff
 from .mock_http import MockResponse
 from .errors import PublicError
+from .sentry import SentryProcessPoolExecutorIntegration
 from .. import basic_diffs, html_render_diff, html_links_diff
 from ..exceptions import UndiffableContentError, UndecodableContentError
 from ..utils import shutdown_executor_in_loop, Signal
@@ -44,13 +45,13 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-# Track errors with Sentry.io. It will automatically detect the `SENTRY_DSN`
-# environment variable. If not set, all its methods will operate conveniently
-# as no-ops.
-sentry_sdk.init(ignore_errors=[KeyboardInterrupt])
-# Tornado logs any non-success response at ERROR level, which Sentry captures
-# by default. We don't really want those logs.
-sentry_sdk.integrations.logging.ignore_logger('tornado.access')
+# Track errors/metrics/traces with Sentry. If the `SENTRY_DSN` environment
+# variable is not set, Sentry will be disabled.
+sentry_sdk.init(
+    ignore_errors=[KeyboardInterrupt],
+    integrations=[SentryProcessPoolExecutorIntegration()],
+    traces_sample_rate=float(os.getenv('SENTRY_TRACES_SAMPLE_RATE') or '0'),
+)
 
 DIFFER_PARALLELISM = int(os.environ.get('DIFFER_PARALLELISM', 10))
 MAX_DIFFS_PER_WORKER = max(int(os.environ.get('MAX_DIFFS_PER_WORKER', 0)), 0)
@@ -278,7 +279,9 @@ class DiffHandler(BaseHandler):
         content = await asyncio.gather(*requests)
 
         # Pass the bytes and any remaining args to the diffing function.
-        res = await self.diff(func, content[0], content[1], query_params)
+        with sentry_sdk.start_span(op='diff', name=f'diff.{differ}'):
+            res = await self.diff(func, content[0], content[1], query_params)
+
         res['version'] = web_monitoring_diff.__version__
         # Echo the client's request unless the differ func has specified
         # somethine else.
@@ -322,8 +325,15 @@ class DiffHandler(BaseHandler):
 
             try:
                 client = get_http_client()
-                response = await client.fetch(url, headers=headers,
-                                              validate_cert=VALIDATE_TARGET_CERTIFICATES)
+                with sentry_sdk.start_span(op='http.client') as span:
+                    span.set_data('http.request.method', 'GET')
+                    span.set_data('url', url)
+
+                    response = await client.fetch(url, headers=headers,
+                                                  validate_cert=VALIDATE_TARGET_CERTIFICATES)
+
+                    span.set_data('http.response.status_code', response.code)
+                    span.set_data('http.response_content_length', response.headers.get('content-length'))
             except ValueError as error:
                 raise PublicError(400, str(error))
             # Only raised by the simple client and not by the cURL client.
@@ -564,15 +574,24 @@ def _extract_encoding(headers, content):
     if encoding:
         encoding = encoding.strip()
     if not encoding and content:
-        # try to identify encoding using chardet. Use up to 18kb of the
-        # content for detection. Its not necessary to use the full content
-        # as it could be huge. Also, if you use too little, detection is not
-        # accurate.
-        detected = chardet.detect(content[:18432])
-        if detected:
-            detected_encoding = detected.get('encoding')
-            if detected_encoding:
-                encoding = detected_encoding.lower()
+        with sentry_sdk.start_span(op='encoding.chardet', name='Chardet') as span:
+            # try to identify encoding using chardet. Use up to 18kb of the
+            # content for detection. Its not necessary to use the full content
+            # as it could be huge. Also, if you use too little, detection is
+            # not accurate.
+            detected = chardet.detect(content[:18432])
+            if detected:
+                detected_encoding = detected.get('encoding')
+                if detected_encoding:
+                    encoding = detected_encoding.lower()
+            span.set_data('charset', encoding)
+            span.set_data('bytes', min(len(content), 18432))
+
+        logger.info(f'Sniffed character encoding w/ Chardet: "{encoding}"')
+        sentry_sdk.metrics.count('encoding.chardet', 1, attributes={
+            'charset': encoding,
+            'content-type': content_type,
+        })
 
     # Handle common mistakes and errors in encoding names
     if encoding == 'iso-8559-1':
@@ -585,6 +604,7 @@ def _extract_encoding(headers, content):
     try:
         codecs.lookup(encoding)
     except (LookupError, ValueError, TypeError):
+        logger.warning('Found invalid character encoding: "%s"', encoding)
         encoding = 'utf-8'
     return encoding
 
@@ -667,7 +687,8 @@ def caller(func, a, b, **query_params):
                 raise KeyError("{} requires a parameter {} which was not "
                                "provided in the query"
                                "".format(func.__name__, name))
-    return func(**kwargs)
+    with sentry_sdk.start_span(op='diff.call', name=f'diff.call.{func.__name__}'):
+        return func(**kwargs)
 
 
 class IndexHandler(BaseHandler):
