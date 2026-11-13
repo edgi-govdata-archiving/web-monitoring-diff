@@ -28,7 +28,6 @@ dependencies = [
 [project.optional-dependencies]
 # Dependencies for the HTTP server.
 server = [
-    "python-dotenv >= 1.2.2",
     # There were notable performance issues in chardet v6 and controversial
     # licensing/rewrite issues in v7, so we allow a wide range for it in order
     # to be compatible with users' choices.
@@ -42,6 +41,7 @@ dev = [
     "coverage ~=7.13",
     "pre-commit ~=4.6",
     "pytest ~=9.1.1",
+    "python-dotenv >= 1.2.2",
     "ruff ~=0.17.4",
 ]
 # Tools for building documentation. Some of our docs tools conflict with dev
