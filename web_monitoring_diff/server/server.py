@@ -46,14 +46,9 @@ logger = logging.getLogger(__name__)
 
 # Track errors/metrics/traces with Sentry. If the `SENTRY_DSN` environment
 # variable is not set, Sentry will be disabled.
-SENTRY_SAMPLE_RATE = 0
-try:
-    SENTRY_SAMPLE_RATE = float(os.getenv('SENTRY_TRACES_SAMPLE_RATE', '0'))
-except ValueError:
-    ...
 sentry_sdk.init(
     ignore_errors=[KeyboardInterrupt],
-    traces_sample_rate=SENTRY_SAMPLE_RATE,
+    traces_sample_rate=float(os.getenv('SENTRY_TRACES_SAMPLE_RATE') or '0'),
 )
 
 DIFFER_PARALLELISM = int(os.environ.get('DIFFER_PARALLELISM', 10))
