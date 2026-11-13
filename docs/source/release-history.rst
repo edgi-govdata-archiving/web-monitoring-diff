@@ -2,13 +2,16 @@
 Release History
 ===============
 
-In Development
---------------
+Version 0.3.0 (2026-11-12)
+--------------------------
+
+This release includes a handful of small fixes, but is mostly a compatibility update, including official support for Python 3.15, newer versions of Tornado, and cleaning up some deprecation warnings from newer versions of other dependencies of *web-monitoring-diff*.
+
 
 Breaking Changes
 ^^^^^^^^^^^^^^^^
 
-- ``DIFFER_MAX_BODY_SIZE`` now *actually* defaults to 10 MB, as documented. If set, it also now requires a value greater than 0. It previously defaulted to no limit at all, and a value of ``0`` also previously indicated no limit. (:issue:`256`)
+- The ``DIFFER_MAX_BODY_SIZE`` environment variable now actually defaults to 10 MB. This is how it has always been documented, but is not how it previously behaved. It previously defaulted to no limit at all, and setting a value of ``0`` also previously indicated no limit. There is now *always* a limit, and if this environment variable is set, it must be greater than 0. (:issue:`256`)
 
 
 Features
@@ -20,7 +23,7 @@ Features
   - ``:v1.2.3`` versioned tags for releases and pre-releases.
   - ``:latest`` for the latest versioned release (not pre-releases).
   - ``:edge`` for the latest commit on the ``main`` branch. We try our best to keep this in working shape, but it is not guaranteed to be stable.
-  - ``:<commit-sha>`` for versioned releases, pre-releases, pushes to ``main``, and occasional other arbitrary builds.
+  - ``:<commit-sha>`` for all of the above, and occasional other arbitrary builds.
 
   (:issue:`265`)
 
@@ -28,16 +31,16 @@ Features
 Fixes
 ^^^^^
 
-- Support Tornado v6.5.9 and newer. We had some subtle bugs caused by security fixes in newer Tornado releases. (:issue:`256`)
-- Fix some deperecation warnings when used with recent versions of BeautifulSoup. (:issue:`264`)
-- In ``html_diff_render``, changes in ``<label>`` elements now render better. (:issue:`270`)
 - Support newer Chardet versions. There’s been a lot of controversy about Chardet v7, and if you’d like to make sure you’re using an earlier version, check the :doc:`install instructions <installation>` for guidance. (:issue:`251`)
+- Support Tornado v6.5.9 and newer. We had some subtle bugs caused by security fixes in newer Tornado releases. (:issue:`256`)
+- Fix deperecation warnings when used with recent versions of BeautifulSoup. (:issue:`264`)
+- In ``html_diff_render``, changes in ``<label>`` elements now render better. (:issue:`270`)
 
 
 Docs & Internals
 ^^^^^^^^^^^^^^^^
 
-- During development, the diff server automatically loads configuration from `.env` file if present. (:issue:`247`)
+- During development, the diff server automatically loads configuration from a `.env` file if present. (:issue:`247`)
 - Move mock request/response classes into a separate submodule of `server`. (:issue:`226`)
 - Switched linting from Flake8 to Ruff. (:issue:`249`)
 
