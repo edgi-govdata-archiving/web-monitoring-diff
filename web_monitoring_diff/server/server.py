@@ -44,13 +44,17 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-# Track errors with Sentry.io. It will automatically detect the `SENTRY_DSN`
-# environment variable. If not set, all its methods will operate conveniently
-# as no-ops.
-sentry_sdk.init(ignore_errors=[KeyboardInterrupt])
-# Tornado logs any non-success response at ERROR level, which Sentry captures
-# by default. We don't really want those logs.
-sentry_sdk.integrations.logging.ignore_logger('tornado.access')
+# Track errors/metrics/traces with Sentry. If the `SENTRY_DSN` environment
+# variable is not set, Sentry will be disabled.
+SENTRY_SAMPLE_RATE = 0
+try:
+    SENTRY_SAMPLE_RATE = float(os.getenv('SENTRY_TRACES_SAMPLE_RATE', '0'))
+except ValueError:
+    ...
+sentry_sdk.init(
+    ignore_errors=[KeyboardInterrupt],
+    traces_sample_rate=SENTRY_SAMPLE_RATE,
+)
 
 DIFFER_PARALLELISM = int(os.environ.get('DIFFER_PARALLELISM', 10))
 MAX_DIFFS_PER_WORKER = max(int(os.environ.get('MAX_DIFFS_PER_WORKER', 0)), 0)
@@ -278,7 +282,9 @@ class DiffHandler(BaseHandler):
         content = await asyncio.gather(*requests)
 
         # Pass the bytes and any remaining args to the diffing function.
-        res = await self.diff(func, content[0], content[1], query_params)
+        with sentry_sdk.start_span(op='diff', name=f'diff.{differ}'):
+            res = await self.diff(func, content[0], content[1], query_params)
+
         res['version'] = web_monitoring_diff.__version__
         # Echo the client's request unless the differ func has specified
         # somethine else.
@@ -322,8 +328,15 @@ class DiffHandler(BaseHandler):
 
             try:
                 client = get_http_client()
-                response = await client.fetch(url, headers=headers,
-                                              validate_cert=VALIDATE_TARGET_CERTIFICATES)
+                with sentry_sdk.start_span(op='http.client') as span:
+                    span.set_data('http.request.method', 'GET')
+                    span.set_data('url', url)
+
+                    response = await client.fetch(url, headers=headers,
+                                                  validate_cert=VALIDATE_TARGET_CERTIFICATES)
+
+                    span.set_data('http.response.status_code', response.code)
+                    span.set_data('http.response_content_length', response.headers.get('content-length'))
             except ValueError as error:
                 raise PublicError(400, str(error))
             # Only raised by the simple client and not by the cURL client.
@@ -445,8 +458,13 @@ class DiffHandler(BaseHandler):
             try:
                 if MAX_DIFFS_PER_WORKER:
                     self.settings['remaining_diffs_for_executor'] -= 1
-                return await loop.run_in_executor(
-                    executor, functools.partial(caller, func, a, b, **params))
+                with sentry_sdk.start_span(op='executor.queue'):
+                    trace_info = {
+                        'sentry-trace': sentry_sdk.get_traceparent(),
+                        'baggage': sentry_sdk.get_baggage(),
+                    }
+                    return await loop.run_in_executor(
+                        executor, functools.partial(caller, func, a, b, trace_info, **params))
             except concurrent.futures.process.BrokenProcessPool:
                 if attempt + 1 < tries:
                     # There could be many diffs happening in parallel, so
@@ -564,15 +582,24 @@ def _extract_encoding(headers, content):
     if encoding:
         encoding = encoding.strip()
     if not encoding and content:
-        # try to identify encoding using chardet. Use up to 18kb of the
-        # content for detection. Its not necessary to use the full content
-        # as it could be huge. Also, if you use too little, detection is not
-        # accurate.
-        detected = chardet.detect(content[:18432])
-        if detected:
-            detected_encoding = detected.get('encoding')
-            if detected_encoding:
-                encoding = detected_encoding.lower()
+        with sentry_sdk.start_span(op='encoding.chardet', name='Chardet') as span:
+            # try to identify encoding using chardet. Use up to 18kb of the
+            # content for detection. Its not necessary to use the full content
+            # as it could be huge. Also, if you use too little, detection is
+            # not accurate.
+            detected = chardet.detect(content[:18432])
+            if detected:
+                detected_encoding = detected.get('encoding')
+                if detected_encoding:
+                    encoding = detected_encoding.lower()
+            span.set_data('charset', encoding)
+            span.set_data('bytes', min(len(content), 18432))
+
+        logger.info(f'Sniffed character encoding w/ Chardet: "{encoding}"')
+        sentry_sdk.metrics.count('encoding.chardet', 1, attributes={
+            'charset': encoding,
+            'content-type': content_type,
+        })
 
     # Handle common mistakes and errors in encoding names
     if encoding == 'iso-8559-1':
@@ -585,6 +612,7 @@ def _extract_encoding(headers, content):
     try:
         codecs.lookup(encoding)
     except (LookupError, ValueError, TypeError):
+        logger.warning('Found invalid character encoding: "%s"', encoding)
         encoding = 'utf-8'
     return encoding
 
@@ -608,7 +636,7 @@ def _decode_body(response, name, raise_if_binary=True):
     return text
 
 
-def caller(func, a, b, **query_params):
+def caller(func, a, b, trace_info, **query_params):
     """
     A translation layer between HTTPResponses and differ functions.
 
@@ -635,39 +663,41 @@ def caller(func, a, b, **query_params):
     Any other argument names in the signature will take their values from the
     REST query parameters.
     """
-    # Supplement the query_parameters from the REST call with special items
-    # extracted from `a` and `b`.
-    query_params.setdefault('a_url', a.request.url)
-    query_params.setdefault('b_url', b.request.url)
-    query_params.setdefault('a_body', a.body)
-    query_params.setdefault('b_body', b.body)
-    query_params.setdefault('a_headers', a.headers)
-    query_params.setdefault('b_headers', b.headers)
+    transaction = sentry_sdk.continue_trace(trace_info or {})
+    with sentry_sdk.start_transaction(transaction):
+        # Supplement the query_parameters from the REST call with special items
+        # extracted from `a` and `b`.
+        query_params.setdefault('a_url', a.request.url)
+        query_params.setdefault('b_url', b.request.url)
+        query_params.setdefault('a_body', a.body)
+        query_params.setdefault('b_body', b.body)
+        query_params.setdefault('a_headers', a.headers)
+        query_params.setdefault('b_headers', b.headers)
 
-    # The differ's signature is a dependency injection scheme.
-    sig = inspect.signature(func)
+        # The differ's signature is a dependency injection scheme.
+        sig = inspect.signature(func)
 
-    raise_if_binary = not query_params.get('ignore_decoding_errors', False)
-    if 'a_text' in sig.parameters:
-        query_params.setdefault(
-            'a_text',
-            _decode_body(a, 'a', raise_if_binary=raise_if_binary))
-    if 'b_text' in sig.parameters:
-        query_params.setdefault(
-            'b_text',
-            _decode_body(b, 'b', raise_if_binary=raise_if_binary))
+        raise_if_binary = not query_params.get('ignore_decoding_errors', False)
+        if 'a_text' in sig.parameters:
+            query_params.setdefault(
+                'a_text',
+                _decode_body(a, 'a', raise_if_binary=raise_if_binary))
+        if 'b_text' in sig.parameters:
+            query_params.setdefault(
+                'b_text',
+                _decode_body(b, 'b', raise_if_binary=raise_if_binary))
 
-    kwargs = dict()
-    for name, param in sig.parameters.items():
-        try:
-            kwargs[name] = query_params[name]
-        except KeyError:
-            if param.default is inspect._empty:
-                # This is a required argument.
-                raise KeyError("{} requires a parameter {} which was not "
-                               "provided in the query"
-                               "".format(func.__name__, name))
-    return func(**kwargs)
+        kwargs = dict()
+        for name, param in sig.parameters.items():
+            try:
+                kwargs[name] = query_params[name]
+            except KeyError:
+                if param.default is inspect._empty:
+                    # This is a required argument.
+                    raise KeyError("{} requires a parameter {} which was not "
+                                   "provided in the query"
+                                   "".format(func.__name__, name))
+        return func(**kwargs)
 
 
 class IndexHandler(BaseHandler):
