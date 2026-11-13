@@ -27,6 +27,7 @@ import traceback
 import web_monitoring_diff
 from .mock_http import MockResponse
 from .errors import PublicError
+from .sentry import SentryProcessPoolExecutorIntegration
 from .. import basic_diffs, html_render_diff, html_links_diff
 from ..exceptions import UndiffableContentError, UndecodableContentError
 from ..utils import shutdown_executor_in_loop, Signal
@@ -48,6 +49,7 @@ logger = logging.getLogger(__name__)
 # variable is not set, Sentry will be disabled.
 sentry_sdk.init(
     ignore_errors=[KeyboardInterrupt],
+    integrations=[SentryProcessPoolExecutorIntegration()],
     traces_sample_rate=float(os.getenv('SENTRY_TRACES_SAMPLE_RATE') or '0'),
 )
 
@@ -454,12 +456,8 @@ class DiffHandler(BaseHandler):
                 if MAX_DIFFS_PER_WORKER:
                     self.settings['remaining_diffs_for_executor'] -= 1
                 with sentry_sdk.start_span(op='executor.queue'):
-                    trace_info = {
-                        'sentry-trace': sentry_sdk.get_traceparent(),
-                        'baggage': sentry_sdk.get_baggage(),
-                    }
                     return await loop.run_in_executor(
-                        executor, functools.partial(caller, func, a, b, trace_info, **params))
+                        executor, functools.partial(caller, func, a, b, **params))
             except concurrent.futures.process.BrokenProcessPool:
                 if attempt + 1 < tries:
                     # There could be many diffs happening in parallel, so
@@ -631,7 +629,7 @@ def _decode_body(response, name, raise_if_binary=True):
     return text
 
 
-def caller(func, a, b, trace_info=None, **query_params):
+def caller(func, a, b, **query_params):
     """
     A translation layer between HTTPResponses and differ functions.
 
@@ -658,42 +656,40 @@ def caller(func, a, b, trace_info=None, **query_params):
     Any other argument names in the signature will take their values from the
     REST query parameters.
     """
-    transaction = sentry_sdk.continue_trace(trace_info or {}, op='executor.run', name='diff in subprocess')
-    with sentry_sdk.start_transaction(transaction):
-        # Supplement the query_parameters from the REST call with special items
-        # extracted from `a` and `b`.
-        query_params.setdefault('a_url', a.request.url)
-        query_params.setdefault('b_url', b.request.url)
-        query_params.setdefault('a_body', a.body)
-        query_params.setdefault('b_body', b.body)
-        query_params.setdefault('a_headers', a.headers)
-        query_params.setdefault('b_headers', b.headers)
+    # Supplement the query_parameters from the REST call with special items
+    # extracted from `a` and `b`.
+    query_params.setdefault('a_url', a.request.url)
+    query_params.setdefault('b_url', b.request.url)
+    query_params.setdefault('a_body', a.body)
+    query_params.setdefault('b_body', b.body)
+    query_params.setdefault('a_headers', a.headers)
+    query_params.setdefault('b_headers', b.headers)
 
-        # The differ's signature is a dependency injection scheme.
-        sig = inspect.signature(func)
+    # The differ's signature is a dependency injection scheme.
+    sig = inspect.signature(func)
 
-        raise_if_binary = not query_params.get('ignore_decoding_errors', False)
-        if 'a_text' in sig.parameters:
-            query_params.setdefault(
-                'a_text',
-                _decode_body(a, 'a', raise_if_binary=raise_if_binary))
-        if 'b_text' in sig.parameters:
-            query_params.setdefault(
-                'b_text',
-                _decode_body(b, 'b', raise_if_binary=raise_if_binary))
+    raise_if_binary = not query_params.get('ignore_decoding_errors', False)
+    if 'a_text' in sig.parameters:
+        query_params.setdefault(
+            'a_text',
+            _decode_body(a, 'a', raise_if_binary=raise_if_binary))
+    if 'b_text' in sig.parameters:
+        query_params.setdefault(
+            'b_text',
+            _decode_body(b, 'b', raise_if_binary=raise_if_binary))
 
-        kwargs = dict()
-        for name, param in sig.parameters.items():
-            try:
-                kwargs[name] = query_params[name]
-            except KeyError:
-                if param.default is inspect._empty:
-                    # This is a required argument.
-                    raise KeyError("{} requires a parameter {} which was not "
-                                   "provided in the query"
-                                   "".format(func.__name__, name))
-        with sentry_sdk.start_span(op='diff.call', name=f'diff.call.{func.__name__}'):
-            return func(**kwargs)
+    kwargs = dict()
+    for name, param in sig.parameters.items():
+        try:
+            kwargs[name] = query_params[name]
+        except KeyError:
+            if param.default is inspect._empty:
+                # This is a required argument.
+                raise KeyError("{} requires a parameter {} which was not "
+                               "provided in the query"
+                               "".format(func.__name__, name))
+    with sentry_sdk.start_span(op='diff.call', name=f'diff.call.{func.__name__}'):
+        return func(**kwargs)
 
 
 class IndexHandler(BaseHandler):
