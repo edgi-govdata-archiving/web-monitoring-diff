@@ -455,9 +455,8 @@ class DiffHandler(BaseHandler):
             try:
                 if MAX_DIFFS_PER_WORKER:
                     self.settings['remaining_diffs_for_executor'] -= 1
-                with sentry_sdk.start_span(op='executor.queue'):
-                    return await loop.run_in_executor(
-                        executor, functools.partial(caller, func, a, b, **params))
+                return await loop.run_in_executor(
+                    executor, functools.partial(caller, func, a, b, **params))
             except concurrent.futures.process.BrokenProcessPool:
                 if attempt + 1 < tries:
                     # There could be many diffs happening in parallel, so
