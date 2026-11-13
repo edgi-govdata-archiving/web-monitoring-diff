@@ -14,7 +14,6 @@ Breaking Changes
 Features
 ^^^^^^^^
 
-- Server automatically loads configuration from `.env` file if present. (:issue:`247`)
 - Officially support Python 3.15. (:issue:`257`)
 - We now publish an ``edge`` tag on `Docker Hub <https://hub.docker.com/r/envirodgi/web-monitoring-diff>`_ that reflects the latest commit on the ``main`` branch. If you use the Docker images for this project, the following tags are now available:
 
@@ -38,6 +37,7 @@ Fixes
 Docs & Internals
 ^^^^^^^^^^^^^^^^
 
+- During development, the diff server automatically loads configuration from `.env` file if present. (:issue:`247`)
 - Move mock request/response classes into a separate submodule of `server`. (:issue:`226`)
 - Switched linting from Flake8 to Ruff. (:issue:`249`)
 
